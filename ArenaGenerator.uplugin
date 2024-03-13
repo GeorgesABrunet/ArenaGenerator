@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "ArenaGenerator",
+	"Description": "Create 3D Arenas fit for your game",
+	"Category": "Procedural",
+	"CreatedBy": "Georges Brunet",
+	"CreatedByURL": "https://github.com/GeorgesABrunet",
+	"DocsURL": "https://github.com/GeorgesABrunet/ArenaGenerator/wiki",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/GeorgesABrunet/ArenaGenerator/issues",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ArenaGenerator",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
