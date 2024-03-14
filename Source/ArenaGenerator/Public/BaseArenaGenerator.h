@@ -155,6 +155,10 @@ public:
 #pragma endregion
 
 #pragma region User Inputs - Floor Configs
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+		FFloorTransformRules FloorPlacementRules;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
 		FVector FloorMeshSize;
 
@@ -175,20 +179,44 @@ public:
 #pragma region User Inputs - Wall Configs
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+		FWallTransformRules WallPlacementRules;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
 		FVector WallMeshSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
 		FVector WallMeshScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+		TArray<UStaticMesh*> WallMeshes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+		FVector WallWarpRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+		float WallWarpConcavityStrength;
 
 #pragma endregion
 
 #pragma region User Inputs - Roof Configs
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+		FRoofTransformRules RoofPlacementRules;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
 		FVector RoofMeshSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
 		FVector RoofMeshScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+		TArray<UStaticMesh*> RoofMeshes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+		FVector RoofWarpRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+		float RoofWarpConcavityStrength;
 
 #pragma endregion
 
@@ -215,9 +243,13 @@ private:
 	bool bWarpWallPlacement = false;
 	bool bAddWallRotation = false;
 
+	TArray<UInstancedStaticMeshComponent*> WallMeshInstances;
+
 	//Roofs
 	bool bBringRoofForward = false;
 	bool bRoofIncrementsForwardEachLevel = false;
 	bool bRoofShouldRotate = false;
 	bool bMoveRoofWhenRotated = false;
+
+	TArray<UInstancedStaticMeshComponent*> RoofMeshInstances;
 };

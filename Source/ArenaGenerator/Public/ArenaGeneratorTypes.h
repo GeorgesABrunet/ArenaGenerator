@@ -131,7 +131,10 @@ struct ARENAGENERATOR_API FArenaMeshConfig : public FTableRowBase
 	FVector MeshScale = FVector{ 1 };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSoftObjectPtr<UStaticMesh> ArenaMesh;
+	UStaticMesh* ArenaMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UMaterialInterface* MeshMaterial;
 
 };
 

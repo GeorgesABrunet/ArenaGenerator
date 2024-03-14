@@ -75,6 +75,8 @@ void ABaseArenaGenerator::Tick(float DeltaTime)
 
 void ABaseArenaGenerator::GenerateArena()
 {
+	WipeArena();
+
 	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena..."));
 
 	CalculateArenaParameters(ArenaBuildOrderRules);
@@ -90,6 +92,16 @@ void ABaseArenaGenerator::WipeArena()
 		Inst->DestroyComponent();
 	}
 	FloorMeshInstances.Empty();
+
+	for (UInstancedStaticMeshComponent* Inst : WallMeshInstances) {
+		Inst->DestroyComponent();
+	}
+	WallMeshInstances.Empty();
+
+	for (UInstancedStaticMeshComponent* Inst : RoofMeshInstances) {
+		Inst->DestroyComponent();
+	}
+	RoofMeshInstances.Empty();
 }
 
 void ABaseArenaGenerator::ParametrizeGeneration()
@@ -100,11 +112,25 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 {
 	ArenaBuildOrderRules = BuildOrderRules;
 
+	//floor rules
+	bFloorRotates = FloorPlacementRules.bFloorRotates;
+	bMoveFloorWhenRotated = FloorPlacementRules.bMoveFloorWhenRotated;
+	bWarpFloorPlacement = FloorPlacementRules.bWarpFloorPlacement;
+	bWarpFloorScale = FloorPlacementRules.bWarpFloorScale;
 
+	//wall rules
+	bWarpWallPlacement = WallPlacementRules.bWarpWallPlacement;
+	bAddWallRotation = WallPlacementRules.bAddWallRotation;
+
+	//roof rules
+	bBringRoofForward = RoofPlacementRules.bBringRoofForward;
+	bRoofIncrementsForwardEachLevel = RoofPlacementRules.bRoofIncrementsForwardEachLevel;
+	bRoofShouldRotate = RoofPlacementRules.bRoofShouldRotate;
+	bMoveRoofWhenRotated = RoofPlacementRules.bMoveRoofWhenRotated;
 
 	switch (ArenaBuildOrderRules) {
 		case EArenaBuildOrderRules::FloorLeadsByDimensions:
-			//TODO - ArenaDimensions determines Inscribed Radius
+			//ArenaDimensions determines Inscribed Radius
 
 			//Floors
 			bBOR_Floor = true;
@@ -124,7 +150,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			Apothem = CalculateRightTriangleAdjacent(InscribedRadius, InteriorAngle / 2);
 			break;
 		case EArenaBuildOrderRules::FloorLeadsByRadius:
-			//TODO - Inscribedradius determines arenadims w mesh size
+			//TODO - InscribedRadius determines arenadims w mesh size
 
 			//Floors
 			bBOR_Floor = true;
@@ -176,6 +202,7 @@ void ABaseArenaGenerator::BuildFloor()
 			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
 
 		InstancedMesh->SetStaticMesh(Mesh);
+		//TODO - Set material
 		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		InstancedMesh->RegisterComponent();
 		
@@ -240,9 +267,9 @@ FVector ABaseArenaGenerator::RotatedMeshOffset()
 
 FVector ABaseArenaGenerator::PlacementWarping(int Midpoint, int Col, int Row, FVector OffsetRanges)
 {
-	float ConcaveWarp =
-		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - Midpoint) / Midpoint)), 0, 1)) +
-		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - Midpoint) / Midpoint)), 0, 1))), 0.f, 1.f) * FloorWarpConcavityStrength);
+	float ConcaveWarp = FloorWarpConcavityStrength *
+		(FMath::Clamp((FMath::Lerp(0.02f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - Midpoint)) / Midpoint), 0.f, 1.f)) *
+		FMath::Lerp(0.02f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - Midpoint)) / Midpoint), 0.f, 1.f))), 0.f, 1.f));
 
 	return FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
 		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
