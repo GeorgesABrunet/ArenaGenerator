@@ -25,6 +25,8 @@
 
 #include "BaseArenaGenerator.h"
 #include "Math/RandomStream.h"
+#include "Components/InstancedStaticMeshComponent.h"
+
 
 DEFINE_LOG_CATEGORY(LogArenaGenerator)
 
@@ -34,7 +36,7 @@ ABaseArenaGenerator::ABaseArenaGenerator()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	WipeArena();
+	//WipeArena();
 
 	ArenaBuildOrderRules = EArenaBuildOrderRules::FloorLeadsByDimensions;
 	bBuildArenaCenterOnActor = true;
@@ -74,11 +76,20 @@ void ABaseArenaGenerator::Tick(float DeltaTime)
 void ABaseArenaGenerator::GenerateArena()
 {
 	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena..."));
+
+	CalculateArenaParameters(ArenaBuildOrderRules);
+
+	BuildFloor();
 }
 
 void ABaseArenaGenerator::WipeArena()
 {
 	UE_LOG(LogArenaGenerator, Log, TEXT("Wiping Arena..."));
+
+	for (UInstancedStaticMeshComponent* Inst : FloorMeshInstances) {
+		Inst->DestroyComponent();
+	}
+	FloorMeshInstances.Empty();
 }
 
 void ABaseArenaGenerator::ParametrizeGeneration()
@@ -88,6 +99,8 @@ void ABaseArenaGenerator::ParametrizeGeneration()
 void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules)
 {
 	ArenaBuildOrderRules = BuildOrderRules;
+
+
 
 	switch (ArenaBuildOrderRules) {
 		case EArenaBuildOrderRules::FloorLeadsByDimensions:
@@ -99,6 +112,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			InscribedRadius = (FloorMeshSize.X * (DesiredArenaFloorDimensions - 1));
 
 			//Walls
+			ArenaSides = DesiredArenaSides;
 			InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
 			ExteriorAngle = 360.f / ArenaSides;
 			SideLength = 2 * CalculateRightTriangleOpposite(InscribedRadius, InteriorAngle / 2);
@@ -152,22 +166,41 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 
 void ABaseArenaGenerator::BuildFloor()
 {
+	UE_LOG(LogArenaGenerator, Log, TEXT("Building Floor..."));
 
-	for (int Row = 0; Row < ArenaDimensions - 1; Row++) {
-		for (int Col = 0; Col < ArenaDimensions - 1; Col++) {
+	//Cache midpoint index
+	int Midpoint = FMath::Floor(ArenaDimensions / 2);
+
+	for (UStaticMesh* Mesh : FloorMeshes) {
+		UInstancedStaticMeshComponent* InstancedMesh =
+			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
+
+		InstancedMesh->SetStaticMesh(Mesh);
+		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		InstancedMesh->RegisterComponent();
+		
+		FloorMeshInstances.Add(InstancedMesh);
+	}
+
+
+	for (int Row = 0; Row < ArenaDimensions; Row++) {
+		for (int Col = 0; Col < ArenaDimensions; Col++) {
+			//Cache some random value between 0 & 3 to use for rotating floor pieces
 			int RandomVal = bFloorRotates ? ArenaStream.RandRange(0, 3) : 0;
+
+			int MeshInd = 0; //TODO - floor mesh selection patterns
 
 			//Determine floor tile transform
 			FTransform FloorTileTransform = FTransform(
 				FRotator(0.f, 90.f * RandomVal, 0.f), //Rotation
-				FloorOriginOffset // Location - Floor Origin Offset
-				+ FVector(FloorMeshSize.X * Row * FloorMeshScale.X, FloorMeshSize.Y * Col * FloorMeshScale.Y, //Location : MeshSize * indices
-					bWarpFloorPlacement ? 0.f : 0.f) //TODO floor placement warping 
+				FloorOriginOffset // Location : Floor Origin Offset
+				+ FVector(FloorMeshSize.X * Row * FloorMeshScale.X, FloorMeshSize.Y * Col * FloorMeshScale.Y, 0)//Location : MeshSize * indices
+				+ (bWarpFloorPlacement ? PlacementWarping(Midpoint, Col, Row, FloorWarpRange) : FVector(0)) //TODO floor placement warping 
 				+ (bMoveFloorWhenRotated ? RotatedMeshOffset() : FVector(0)) // Move floor if rotated
-				
 				,FVector(FloorMeshScale.X, FloorMeshScale.Y, FloorMeshScale.Z + (bWarpFloorScale ? ArenaStream.FRandRange(0, 0.25f ) : 0.f)) //Scale
 			);
 
+			FloorMeshInstances[MeshInd]->AddInstance(FloorTileTransform);
 		}
 	}
 }
@@ -202,8 +235,21 @@ FVector ABaseArenaGenerator::ForwardVectorFromYaw(float yaw)
 FVector ABaseArenaGenerator::RotatedMeshOffset()
 {
 	//TODO change based on origin location
-	return FVector();
+	return FVector(0, 0, 0);
 }
+
+FVector ABaseArenaGenerator::PlacementWarping(int Midpoint, int Col, int Row, FVector OffsetRanges)
+{
+	float ConcaveWarp =
+		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - Midpoint) / Midpoint)), 0, 1)) +
+		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - Midpoint) / Midpoint)), 0, 1))), 0.f, 1.f) * FloorWarpConcavityStrength);
+
+	return FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
+		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
+		ConcaveWarp + ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z));
+}
+
+
 
 #pragma endregion
 

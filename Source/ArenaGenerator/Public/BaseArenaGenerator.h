@@ -70,6 +70,8 @@ private:
 
 	FVector RotatedMeshOffset();
 
+	FVector PlacementWarping(int Midpoint, int Col, int Row, FVector OffsetRanges);
+
 
 public:
 //The values here are not meant to be directly modified by user input. 
@@ -146,28 +148,47 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bLoadMeshesAsync = false;
 
+	//TODO - map hierarchical instances as well
+	UPROPERTY(BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	bool bUseHierarchicalInstances = false;
+
 #pragma endregion
 
-#pragma region User Inputs - Mesh Configs
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Floor")
+#pragma region User Inputs - Floor Configs
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
 		FVector FloorMeshSize;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
 		FVector FloorMeshScale;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+		TArray<UStaticMesh*> FloorMeshes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+		FVector FloorWarpRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+		float FloorWarpConcavityStrength;
+
+#pragma endregion
+
+#pragma region User Inputs - Wall Configs
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
 		FVector WallMeshSize;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
 		FVector WallMeshScale;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Roof")
+#pragma endregion
+
+#pragma region User Inputs - Roof Configs
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
 		FVector RoofMeshSize;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
 		FVector RoofMeshScale;
-
-
 
 #pragma endregion
 
@@ -188,6 +209,7 @@ private:
 	bool bWarpFloorPlacement = false;
 	bool bWarpFloorScale = false;
 
+	TArray<UInstancedStaticMeshComponent*> FloorMeshInstances;
 
 	//Walls
 	bool bWarpWallPlacement = false;
