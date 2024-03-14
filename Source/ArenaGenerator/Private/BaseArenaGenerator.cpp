@@ -26,13 +26,15 @@
 #include "BaseArenaGenerator.h"
 #include "Math/RandomStream.h"
 
+DEFINE_LOG_CATEGORY(LogArenaGenerator)
+
 // Sets default values
 ABaseArenaGenerator::ABaseArenaGenerator()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	//WipeArena();
+	WipeArena();
 
 	ArenaBuildOrderRules = EArenaBuildOrderRules::FloorLeadsByDimensions;
 	bBuildArenaCenterOnActor = true;
@@ -52,7 +54,6 @@ ABaseArenaGenerator::ABaseArenaGenerator()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 
-	//
 }
 
 // Called when the game starts or when spawned
@@ -72,6 +73,12 @@ void ABaseArenaGenerator::Tick(float DeltaTime)
 
 void ABaseArenaGenerator::GenerateArena()
 {
+	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena..."));
+}
+
+void ABaseArenaGenerator::WipeArena()
+{
+	UE_LOG(LogArenaGenerator, Log, TEXT("Wiping Arena..."));
 }
 
 void ABaseArenaGenerator::ParametrizeGeneration()

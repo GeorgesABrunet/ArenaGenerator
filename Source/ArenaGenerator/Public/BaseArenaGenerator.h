@@ -28,6 +28,8 @@
 #include "ArenaGeneratorTypes.h"
 #include "BaseArenaGenerator.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogArenaGenerator, All, All)
+
 UCLASS(Blueprintable, ClassGroup = "Arena Generator")
 class ARENAGENERATOR_API ABaseArenaGenerator : public AActor
 {
@@ -45,10 +47,11 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena | Generation")
 	void GenerateArena();
 
-	//void WipeArena();
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena | Generation")
+	void WipeArena();
 
 	void ParametrizeGeneration();
 	void BuildFloor();
