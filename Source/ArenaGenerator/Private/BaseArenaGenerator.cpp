@@ -26,6 +26,7 @@
 #include "BaseArenaGenerator.h"
 #include "Math/RandomStream.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include <Kismet/KismetMathLibrary.h>
 
 
 DEFINE_LOG_CATEGORY(LogArenaGenerator)
@@ -55,6 +56,8 @@ ABaseArenaGenerator::ABaseArenaGenerator()
 	RoofMeshScale = FVector{ 1 };
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	
+	ArenaStream = FRandomStream(ArenaSeed);
 
 }
 
@@ -63,7 +66,7 @@ void ABaseArenaGenerator::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	ArenaStream = FRandomStream(ArenaSeed);
+	
 }
 
 // Called every frame
@@ -75,17 +78,47 @@ void ABaseArenaGenerator::Tick(float DeltaTime)
 
 void ABaseArenaGenerator::GenerateArena()
 {
+	//Clear previous arena
 	WipeArena();
 
-	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena..."));
+	
 
-	CalculateArenaParameters(ArenaBuildOrderRules);
+	//TODO - branch building method for pattern list
+	if (bBuildArenaUsingPatternList) {
 
-	BuildFloor();
+		UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena from Patterns..."));
+		//TODO - BUILD ITERATIVELY ON PATTERN INPUT
 
-	if (SideTileHeight > 0) {
-		BuildWalls();
+		// for pattern : level patterns
+			//buildlevel(pattern)
 	}
+	else{
+
+		UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena as Three Piece..."));
+		//Calculate necessary values for generation based on the parameters provided and build order rules
+		CalculateArenaParameters(ArenaBuildOrderRules);
+
+		//BUILD 1 to 3 FLOOR ARENA
+
+		//Build Floor as horizontal grid
+		if (ArenaBuildRules.bBuildFloor) {
+			BuildFloor();
+		}
+
+		//Build Walls
+		if (ArenaBuildRules.bBuildWalls && SideTileHeight > 0) {
+			BuildWalls();
+		}
+
+		//Build Roof
+		if (ArenaBuildRules.bBuildRoof) {
+			BuildRoof();
+		}
+	}
+	
+	
+
+
 
 }
 
@@ -128,12 +161,16 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 	bAddWallRotation = WallPlacementRules.bAddWallRotation;
 
 	//roof rules
+	bBuildRoofAsCone = RoofPlacementRules.bBuildRoofAsCone;
 	bBringRoofForward = RoofPlacementRules.bBringRoofForward;
 	bRoofIncrementsForwardEachLevel = RoofPlacementRules.bRoofIncrementsForwardEachLevel;
-	bRoofShouldRotate = RoofPlacementRules.bRoofShouldRotate;
+	bRoofRotates = RoofPlacementRules.bRoofShouldRotate;
 	bMoveRoofWhenRotated = RoofPlacementRules.bMoveRoofWhenRotated;
+	bFlipRoofMeshes = RoofPlacementRules.bFlipRoofMeshes;
+	bWarpRoofPlacement = RoofPlacementRules.bWarpRoofPlacement;
 
-	switch (ArenaBuildOrderRules) {
+
+	switch (BuildOrderRules) {
 		case EArenaBuildOrderRules::FloorLeadsByDimensions:
 			//ArenaDimensions determines Inscribed Radius
 
@@ -182,22 +219,19 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			break;
 	}
 
-	//How much we need to offset the arena pieces as 
-	
+
 	
 	FloorOriginOffset = (FloorMeshSize * ArenaDimensions * -0.5f) * FVector(1, 1, 0);
 	
-	ArenaCenterLoc = //(FVector(0, (FloorMeshSize.Y * ArenaDimensions * -0.5f), 0) + 
-		//(InscribedRadius * (static_cast<float>(TilesPerArenaSide)/(SideLength/WallMeshSize.X)) * ForwardVectorFromYaw(InteriorAngle/2))) * (-1.f);
-
-		-(((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
+	ArenaCenterLoc = -(
+		((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
 		FVector(0, (FloorMeshSize * ArenaDimensions * 0.5f).Y, 0));
 
 	WallOriginOffset = FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z);
 
-	//TODO determine roof origin offset for patterns
-	RoofOriginOffset = FVector(0, 0, WallMeshSize.Z * SideTileHeight) //Height config
-		+ WallOriginOffset;
+	RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight)
+		: FVector(FloorOriginOffset.X, FloorOriginOffset.Y, WallMeshSize.Z * SideTileHeight);
+		//FVector((bBuildRoofAsCone ? WallOriginOffset.X : FloorOriginOffset.X), (bBuildRoofAsCone ? WallOriginOffset.Y : FloorOriginOffset.Y),WallMeshSize.Z * SideTileHeight);
 
 }
 
@@ -213,7 +247,9 @@ void ABaseArenaGenerator::BuildFloor()
 			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
 
 		InstancedMesh->SetStaticMesh(Mesh);
-		//TODO - Set material
+		if (FloorMaterial) {
+			InstancedMesh->SetMaterial(0, FloorMaterial);
+		}
 		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		InstancedMesh->RegisterComponent();
 		
@@ -233,7 +269,7 @@ void ABaseArenaGenerator::BuildFloor()
 				FRotator(0.f, 90.f * RandomVal, 0.f), //Rotation
 				FloorOriginOffset // Location : Floor Origin Offset
 				+ FVector(FloorMeshSize.X * Row * FloorMeshScale.X, FloorMeshSize.Y * Col * FloorMeshScale.Y, 0)//Location : MeshSize * indices
-				+ (bWarpFloorPlacement ? PlacementWarping(FloorMidpoint, FloorMidpoint, Col, Row, FloorWarpRange, FloorWarpConcavityStrength, FVector(0,0,1)) : FVector(0)) //TODO floor placement warping 
+				+ (bWarpFloorPlacement ? PlacementWarping(FloorMidpoint, FloorMidpoint, Col, Row, FloorWarpRange, FloorWarpConcavityStrength, FVector(0,0,1), 0) : FVector(0)) //TODO floor placement warping 
 				+ (bMoveFloorWhenRotated ? RotatedMeshOffset() : FVector(0)) // Move floor if rotated
 				,FVector(FloorMeshScale.X, FloorMeshScale.Y, FloorMeshScale.Z + (bWarpFloorScale ? ArenaStream.FRandRange(0, 0.25f ) : 0.f)) //Scale
 			);
@@ -257,6 +293,9 @@ void ABaseArenaGenerator::BuildWalls()
 
 		InstancedMesh->SetStaticMesh(Mesh);
 		//TODO - Set material
+		if (WallMaterial) {
+			InstancedMesh->SetMaterial(0, WallMaterial);
+		}
 		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		InstancedMesh->RegisterComponent();
 
@@ -269,11 +308,15 @@ void ABaseArenaGenerator::BuildWalls()
 		//Get Side angle's forward vector
 		FVector SideAngleFV = ForwardVectorFromYaw(ExteriorAngle * SideIdx);
 
+		//Get Yaw Rotation for wall pieces
+		float YawRotation = (360.f / ArenaSides) * SideIdx;
+
+		//RightVector
+		FVector SideAngleRV = FRotationMatrix(FRotator(0, YawRotation, 0)).GetScaledAxis(EAxis::Y);
+
 		//Adjust last cached position to offset by meshsize in side angle's direction
 		LastCachedPosition = (SideAngleFV * WallMeshSize.X) + LastCachedPosition;
 
-		//Get Yaw Rotation for wall pieces
-		float YawRotation = (360.f / ArenaSides) * SideIdx;
 
 		for (int Len = 0; Len < TilesPerArenaSide; ++Len) {
 			//Iterate LastCachedPosition by mesh size in new side angle's direction. Don't include placement jitter here.
@@ -284,7 +327,7 @@ void ABaseArenaGenerator::BuildWalls()
 				FTransform WallTileTransform = FTransform(
 				FRotator(0, YawRotation + (bAddWallRotation ? ArenaStream.FRandRange(0.f, 360.f) : 0.f), 0), // Rotation
 					WallOriginOffset + LastCachedPosition + FVector(0, 0, WallMeshSize.Z * Height) //Location : Origin offset & tiling
-					+ (bWarpWallPlacement ? PlacementWarping(ColMidpoint, RowMidpoint, Len, Height, WallWarpRange, WallWarpConcavityStrength, SideAngleFV) : FVector(0)) //LocationWarping
+					+ (bWarpWallPlacement ? PlacementWarping(ColMidpoint, RowMidpoint, Len, Height, WallWarpRange, WallWarpConcavityStrength, SideAngleRV, YawRotation) : FVector(0)) //LocationWarping
 				,WallMeshScale);
 
 				//TODO pattern matching for wall meshes
@@ -296,6 +339,103 @@ void ABaseArenaGenerator::BuildWalls()
 		}
 	}
 
+}
+
+void ABaseArenaGenerator::BuildRoof()
+{
+	UE_LOG(LogArenaGenerator, Log, TEXT("Building Roof..."));
+
+	for (UStaticMesh* Mesh : RoofMeshes) {
+		UInstancedStaticMeshComponent* InstancedMesh =
+			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
+
+		InstancedMesh->SetStaticMesh(Mesh);
+		//TODO - Set material
+		if (RoofMaterial) {
+			InstancedMesh->SetMaterial(0, RoofMaterial);
+		}
+		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		InstancedMesh->RegisterComponent();
+
+		RoofMeshInstances.Add(InstancedMesh);
+	}
+
+	if (bBuildRoofAsCone) {
+
+		//Get difference of wall and roof mesh scales to offset pieces correctly
+		float MeshScalar = WallMeshSize.X / RoofMeshSize.X;
+
+		for (int RoofSideIdx = 0; RoofSideIdx < ArenaSides; RoofSideIdx++) {
+			//Determine forward vector for placement
+			FVector RoofSideAngleFV = ForwardVectorFromYaw(ExteriorAngle * RoofSideIdx);
+			
+			//Cache last used position to update through next loop
+			FVector LastCachedPosition = LastCachedPosition + ((RoofSideAngleFV * RoofMeshSize.X) * MeshScalar);
+
+			//Cache Yaw rotation for the side
+			float RoofYawRotation = (360.f / ArenaSides) * RoofSideIdx;
+
+			//Determine right vector for placement offsets
+			FVector RoofSideAngleRV = FRotationMatrix(FRotator(0, RoofYawRotation, 0)).GetScaledAxis(EAxis::Y);
+				
+			for (int RoofLen = 0; RoofLen < TilesPerArenaSide; ++RoofLen) {
+
+				LastCachedPosition = (RoofSideAngleFV * FVector(RoofMeshSize.X, RoofMeshSize.X, 0)) * (RoofLen > 0 ? 1 : 0) + LastCachedPosition;
+
+				for (int RoofHeightIdx = 0; RoofHeightIdx < RoofTileHeight; ++RoofHeightIdx) {
+
+					FTransform RoofTileTransform = FTransform(
+						FRotator(0.f, RoofYawRotation + (bMoveRoofWhenRotated ? ArenaStream.FRandRange(0.f, 360.f) : 0.f), 0.f),
+						LastCachedPosition //LastCachedPosition
+						+ RoofOriginOffset //Offset and position
+						+ FVector(0, 0, RoofMeshSize.Z * RoofHeightIdx) // Height Adjustment
+						+ (bBringRoofForward ? RoofSideAngleRV * WallMeshSize.Y : FVector(0)) 
+						+ (bRoofIncrementsForwardEachLevel ? (RoofSideAngleRV * RoofHeightIdx * RoofMeshSize.Y) : FVector(0))
+					
+					,RoofMeshScale);
+
+					int RoofMeshIdx = 0;
+
+					if (RoofMeshInstances[RoofMeshIdx]) {
+						RoofMeshInstances[RoofMeshIdx]->AddInstance(RoofTileTransform);
+					}
+					else {
+						UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Roof Mesh Instance index: %d"), RoofMeshIdx);
+					}
+					
+				}
+			}
+		}
+
+
+	}
+	else {
+
+		//Cache midpoint index
+		int RoofMidpoint = FMath::Floor(ArenaDimensions / 2);
+
+		for (int Row = 0; Row < ArenaDimensions; Row++) {
+			for (int Col = 0; Col < ArenaDimensions; Col++) {
+
+				//Cache some random value between 0 & 3 to use for rotating roof pieces
+				int RandomVal = bRoofRotates ? ArenaStream.RandRange(0, 3) : 0;
+
+				FTransform RoofTileTransform = FTransform(
+					FRotator((bFlipRoofMeshes ? 180.f : 0), 90.f * RandomVal, 0), //Rotation
+					RoofOriginOffset + FVector(RoofMeshSize.X * Row * RoofMeshScale.X, RoofMeshSize.Y * Col * RoofMeshScale.Y, 0)
+					+ (bRoofRotates && bMoveRoofWhenRotated ? 0 : 0) //TODO - location offsets from rotation, considering origin location on mesh
+					+ (bWarpRoofPlacement ? PlacementWarping(RoofMidpoint, RoofMidpoint, Col, Row, RoofWarpRange, RoofWarpConcavityStrength, FVector(0, 0, 1), 0.f) : FVector(0))
+					, RoofMeshScale
+				);
+
+				//TODO - roof pattern idx
+				int RoofMeshIdx = 0;
+
+				RoofMeshInstances[RoofMeshIdx]->AddInstance(RoofTileTransform);
+			}
+		}
+
+	}
 }
 
 
@@ -327,15 +467,17 @@ FVector ABaseArenaGenerator::RotatedMeshOffset()
 	return FVector(0, 0, 0);
 }
 
-FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection)
+FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection, float Yaw)
 {
 	float ConcaveWarp = ConcavityStrength *
 		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - ColMidpoint)) / RowMidpoint), 0.f, 1.f)) *
 		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
 
-	return FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
+	OffsetRanges.RotateAngleAxis(Yaw, FVector(0, 0, 1));
+	//TODO - Multiply by warpdir if not 0,0,1
+	return ((WarpDirection == FVector(0,0,1) ? FVector(1) : WarpDirection) * FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
 		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
-		ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z)) 
+		ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z)) )
 		+ (WarpDirection * ConcaveWarp);
 }
 

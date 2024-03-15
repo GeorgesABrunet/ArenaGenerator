@@ -59,6 +59,21 @@ enum class EMeshOriginPlacement : uint8
 
 #pragma region Structs
 
+USTRUCT(BlueprintType)
+struct ARENAGENERATOR_API FThreePieceArenaBuildRules : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bBuildFloor = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bBuildWalls = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bBuildRoof = true;
+};
+
 // Floor Rule Configuration determine behaviors to consider during transform calculation
 USTRUCT(BlueprintType)
 struct ARENAGENERATOR_API FFloorTransformRules : public FTableRowBase
@@ -99,6 +114,10 @@ struct ARENAGENERATOR_API FRoofTransformRules : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	//Should roof build as a flat grid or a cone.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bBuildRoofAsCone = false;
+
 	//Bring roof forward by width of walls. This may be preferable for some meshes that are angled.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bBringRoofForward = false;
@@ -107,11 +126,18 @@ struct ARENAGENERATOR_API FRoofTransformRules : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bRoofIncrementsForwardEachLevel = false;
 
+	//Should we rotate the roof by increments
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bRoofShouldRotate = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bMoveRoofWhenRotated = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bFlipRoofMeshes = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bWarpRoofPlacement = false;
 	
 };
 

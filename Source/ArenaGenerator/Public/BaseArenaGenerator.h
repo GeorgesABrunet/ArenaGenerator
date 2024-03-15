@@ -54,8 +54,11 @@ public:
 	void WipeArena();
 
 	void ParametrizeGeneration();
+
+	//For Conventional 3-Piece Building
 	void BuildFloor();
 	void BuildWalls();
+	void BuildRoof();
 
 
 private:
@@ -70,7 +73,7 @@ private:
 
 	FVector RotatedMeshOffset();
 
-	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
+	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection, float yaw);
 
 
 public:
@@ -125,33 +128,10 @@ public:
 	EArenaBuildOrderRules ArenaBuildOrderRules = EArenaBuildOrderRules::FloorLeadsByDimensions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	bool bBuildArenaUsingPatternList = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bBuildArenaCenterOnActor = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	int32 DesiredArenaSides = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	int32 DesiredArenaFloorDimensions = 0;
-
-	//Will determine the horizontal span of the arena. 
-	//Final arena radius will differ based on build order rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	float DesiredInscribedRadius = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	int32 DesiredTilesPerSide = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	int32 SideTileHeight = 1;
-
-	//Determines how many sides can the polygonal arena have. 
-	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	int32 MaxSides = 120;
-
-	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-		int32 MaxTilesPerSideRow = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	int32 ArenaSeed;
@@ -161,78 +141,131 @@ public:
 
 	//This determines if we should load mesh assets in asynchronously during generation. 
 	//By default we load assets in synchronously.
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bLoadMeshesAsync = false;
 
 	//TODO - map hierarchical instances as well
-	UPROPERTY(BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bUseHierarchicalInstances = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	FThreePieceArenaBuildRules ArenaBuildRules;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	int32 DesiredArenaSides = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	int32 DesiredArenaFloorDimensions = 0;
+
+	//Will determine the horizontal span of the arena. 
+	//Final arena radius will differ based on build order rules.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	float DesiredInscribedRadius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	int32 DesiredTilesPerSide = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	int32 SideTileHeight = 1;
+
+	//Determines how many sides can the polygonal arena have. 
+	//WARNING: Consider Tiles per side and build rules! 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	int32 MaxSides = 120;
+
+	//WARNING: Consider Tiles per side and build rules! 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+		int32 MaxTilesPerSideRow = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+		int32 RoofTileHeight = 1;
 
 #pragma endregion
 
 #pragma region User Inputs - Floor Configs
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		FFloorTransformRules FloorPlacementRules;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		FVector FloorMeshSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		FVector FloorMeshScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		TArray<UStaticMesh*> FloorMeshes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
+		UMaterial* FloorMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		FVector FloorWarpRange;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Floor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		float FloorWarpConcavityStrength;
 
 #pragma endregion
 
 #pragma region User Inputs - Wall Configs
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FWallTransformRules WallPlacementRules;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FVector WallMeshSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FVector WallMeshScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		TArray<UStaticMesh*> WallMeshes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
+		UMaterial* WallMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FVector WallWarpRange;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Wall")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		float WallWarpConcavityStrength;
 
 #pragma endregion
 
 #pragma region User Inputs - Roof Configs
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FRoofTransformRules RoofPlacementRules;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofMeshSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofMeshScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		TArray<UStaticMesh*> RoofMeshes;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		UMaterial* RoofMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofWarpRange;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Roof")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		float RoofWarpConcavityStrength;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		float StartingPitch;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		int AdjustLeanEachIdxInc;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		float PitchLeanAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		bool AdjustPlacementToLean;
 
 #pragma endregion
 
@@ -259,10 +292,13 @@ private:
 	TArray<UInstancedStaticMeshComponent*> WallMeshInstances;
 
 	//Roofs
+	bool bBuildRoofAsCone = false;
 	bool bBringRoofForward = false;
 	bool bRoofIncrementsForwardEachLevel = false;
-	bool bRoofShouldRotate = false;
+	bool bRoofRotates = false;
 	bool bMoveRoofWhenRotated = false;
+	bool bFlipRoofMeshes = false;
+	bool bWarpRoofPlacement = false;
 
 	TArray<UInstancedStaticMeshComponent*> RoofMeshInstances;
 };
