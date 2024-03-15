@@ -47,10 +47,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena | Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena")
 	void GenerateArena();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena | Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena")
 	void WipeArena();
 
 	void ParametrizeGeneration();
@@ -64,13 +64,13 @@ private:
 	//Calculates the definitive parameters of arena generation.
 	void CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules);
 
-	FORCEINLINE float CalculateRightTriangleOpposite(float length, float angle);
-	FORCEINLINE float CalculateRightTriangleAdjacent(float length, float angle);
+	FORCEINLINE float CalculateOpposite(float length, float angle);
+	FORCEINLINE float CalculateAdjacent(float length, float angle);
 	FORCEINLINE FVector ForwardVectorFromYaw(float yaw);
 
 	FVector RotatedMeshOffset();
 
-	FVector PlacementWarping(int Midpoint, int Col, int Row, FVector OffsetRanges);
+	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
 
 
 public:
@@ -102,6 +102,18 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
 	int32 TilesPerArenaSide = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	FVector ArenaCenterLoc;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	FVector FloorOriginOffset;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	FVector WallOriginOffset;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	FVector RoofOriginOffset;
 
 #pragma endregion
 
@@ -136,6 +148,10 @@ public:
 	//WARNING: Consider Tiles per side and build rules! 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	int32 MaxSides = 120;
+
+	//WARNING: Consider Tiles per side and build rules! 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+		int32 MaxTilesPerSideRow = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	int32 ArenaSeed;
@@ -226,10 +242,7 @@ private:
 	
 	bool bBOR_Floor = true;
 
-	FVector ArenaCenterLoc;
-	FVector FloorOriginOffset;
-	FVector WallOriginOffset;
-	FVector RoofOriginOffset;
+	
 
 	//Floors
 	bool bFloorRotates = false;

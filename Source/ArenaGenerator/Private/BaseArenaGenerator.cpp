@@ -82,6 +82,11 @@ void ABaseArenaGenerator::GenerateArena()
 	CalculateArenaParameters(ArenaBuildOrderRules);
 
 	BuildFloor();
+
+	if (SideTileHeight > 0) {
+		BuildWalls();
+	}
+
 }
 
 void ABaseArenaGenerator::WipeArena()
@@ -135,19 +140,21 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			//Floors
 			bBOR_Floor = true;
 			ArenaDimensions = DesiredArenaFloorDimensions;
-			InscribedRadius = (FloorMeshSize.X * (DesiredArenaFloorDimensions - 1));
+			InscribedRadius = (FloorMeshSize.X * (DesiredArenaFloorDimensions - 1) * 0.5);
 
 			//Walls
-			ArenaSides = DesiredArenaSides;
+			ArenaSides = FMath::Clamp(DesiredArenaSides, 3, MaxSides);
 			InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
 			ExteriorAngle = 360.f / ArenaSides;
-			SideLength = 2 * CalculateRightTriangleOpposite(InscribedRadius, InteriorAngle / 2);
+
+			SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle/2.f);
+				//abs((ArenaSides > 4 ? InscribedRadius/2 : InscribedRadius) * FMath::Cos(InteriorAngle / 2));
 			TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength/WallMeshSize.X), 
 				1, //Min
-				FMath::RoundToInt(SideLength / WallMeshSize.X) //Max
+				MaxTilesPerSideRow //Max
 			);
 				
-			Apothem = CalculateRightTriangleAdjacent(InscribedRadius, InteriorAngle / 2);
+			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 			break;
 		case EArenaBuildOrderRules::FloorLeadsByRadius:
 			//TODO - InscribedRadius determines arenadims w mesh size
@@ -155,7 +162,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			//Floors
 			bBOR_Floor = true;
 			InscribedRadius = DesiredInscribedRadius;
-			ArenaDimensions = ((InscribedRadius / FloorMeshSize.X) - 1) > 2 ? ((InscribedRadius / FloorMeshSize.X) - 1) : 2;
+			ArenaDimensions = (InscribedRadius / FloorMeshSize.X) > 2 ? FMath::Floor(InscribedRadius / FloorMeshSize.X) : 2;
 
 			//Walls
 
@@ -176,11 +183,15 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 	}
 
 	//How much we need to offset the arena pieces as 
-	ArenaCenterLoc = GetActorLocation() - (bBuildArenaCenterOnActor ? 
-		(FloorMeshSize.Y * ArenaDimensions * -0.5f) + 
-			(InscribedRadius * (TilesPerArenaSide/(SideLength/WallMeshSize.X)) * ForwardVectorFromYaw(InteriorAngle/2).X) : 0);
+	
 	
 	FloorOriginOffset = (FloorMeshSize * ArenaDimensions * -0.5f) * FVector(1, 1, 0);
+	
+	ArenaCenterLoc = //(FVector(0, (FloorMeshSize.Y * ArenaDimensions * -0.5f), 0) + 
+		//(InscribedRadius * (static_cast<float>(TilesPerArenaSide)/(SideLength/WallMeshSize.X)) * ForwardVectorFromYaw(InteriorAngle/2))) * (-1.f);
+
+		-(((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
+		FVector(0, (FloorMeshSize * ArenaDimensions * 0.5f).Y, 0));
 
 	WallOriginOffset = FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z);
 
@@ -195,7 +206,7 @@ void ABaseArenaGenerator::BuildFloor()
 	UE_LOG(LogArenaGenerator, Log, TEXT("Building Floor..."));
 
 	//Cache midpoint index
-	int Midpoint = FMath::Floor(ArenaDimensions / 2);
+	int FloorMidpoint = FMath::Floor(ArenaDimensions / 2);
 
 	for (UStaticMesh* Mesh : FloorMeshes) {
 		UInstancedStaticMeshComponent* InstancedMesh =
@@ -215,39 +226,90 @@ void ABaseArenaGenerator::BuildFloor()
 			//Cache some random value between 0 & 3 to use for rotating floor pieces
 			int RandomVal = bFloorRotates ? ArenaStream.RandRange(0, 3) : 0;
 
-			int MeshInd = 0; //TODO - floor mesh selection patterns
+			int FloorMeshIdx = 0; //TODO - floor mesh selection patterns
 
 			//Determine floor tile transform
 			FTransform FloorTileTransform = FTransform(
 				FRotator(0.f, 90.f * RandomVal, 0.f), //Rotation
 				FloorOriginOffset // Location : Floor Origin Offset
 				+ FVector(FloorMeshSize.X * Row * FloorMeshScale.X, FloorMeshSize.Y * Col * FloorMeshScale.Y, 0)//Location : MeshSize * indices
-				+ (bWarpFloorPlacement ? PlacementWarping(Midpoint, Col, Row, FloorWarpRange) : FVector(0)) //TODO floor placement warping 
+				+ (bWarpFloorPlacement ? PlacementWarping(FloorMidpoint, FloorMidpoint, Col, Row, FloorWarpRange, FloorWarpConcavityStrength, FVector(0,0,1)) : FVector(0)) //TODO floor placement warping 
 				+ (bMoveFloorWhenRotated ? RotatedMeshOffset() : FVector(0)) // Move floor if rotated
 				,FVector(FloorMeshScale.X, FloorMeshScale.Y, FloorMeshScale.Z + (bWarpFloorScale ? ArenaStream.FRandRange(0, 0.25f ) : 0.f)) //Scale
 			);
 
-			FloorMeshInstances[MeshInd]->AddInstance(FloorTileTransform);
+			FloorMeshInstances[FloorMeshIdx]->AddInstance(FloorTileTransform);
 		}
 	}
 }
 
 void ABaseArenaGenerator::BuildWalls()
 {
+	UE_LOG(LogArenaGenerator, Log, TEXT("Building Wall..."));
+
+	//cache midpoints
+	int ColMidpoint = FMath::Clamp(SideTileHeight / 2, 1, SideTileHeight);
+	int RowMidpoint = FMath::Clamp(TilesPerArenaSide / 2, 1, TilesPerArenaSide);
+
+	for (UStaticMesh* Mesh : WallMeshes) {
+		UInstancedStaticMeshComponent* InstancedMesh =
+			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
+
+		InstancedMesh->SetStaticMesh(Mesh);
+		//TODO - Set material
+		InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		InstancedMesh->RegisterComponent();
+
+		WallMeshInstances.Add(InstancedMesh);
+	}
+
+	FVector LastCachedPosition = FVector{ 0 };
+
+	for (int SideIdx = 0; SideIdx < ArenaSides; SideIdx++) {
+		//Get Side angle's forward vector
+		FVector SideAngleFV = ForwardVectorFromYaw(ExteriorAngle * SideIdx);
+
+		//Adjust last cached position to offset by meshsize in side angle's direction
+		LastCachedPosition = (SideAngleFV * WallMeshSize.X) + LastCachedPosition;
+
+		//Get Yaw Rotation for wall pieces
+		float YawRotation = (360.f / ArenaSides) * SideIdx;
+
+		for (int Len = 0; Len < TilesPerArenaSide; ++Len) {
+			//Iterate LastCachedPosition by mesh size in new side angle's direction. Don't include placement jitter here.
+			LastCachedPosition = (SideAngleFV * FVector(WallMeshSize.X, WallMeshSize.X, 0)) * (Len > 0 ? 1 : 0) + LastCachedPosition;
+
+			for (int Height = 0; Height < SideTileHeight; ++Height) {
+
+				FTransform WallTileTransform = FTransform(
+				FRotator(0, YawRotation + (bAddWallRotation ? ArenaStream.FRandRange(0.f, 360.f) : 0.f), 0), // Rotation
+					WallOriginOffset + LastCachedPosition + FVector(0, 0, WallMeshSize.Z * Height) //Location : Origin offset & tiling
+					+ (bWarpWallPlacement ? PlacementWarping(ColMidpoint, RowMidpoint, Len, Height, WallWarpRange, WallWarpConcavityStrength, SideAngleFV) : FVector(0)) //LocationWarping
+				,WallMeshScale);
+
+				//TODO pattern matching for wall meshes
+				int WallMeshIdx = 0;
+
+				//All good, Add instance
+				WallMeshInstances[WallMeshIdx]->AddInstance(WallTileTransform);
+			}
+		}
+	}
+
 }
 
 
 
 #pragma region Utility
 
-float ABaseArenaGenerator::CalculateRightTriangleOpposite(float length, float angle)
+float ABaseArenaGenerator::CalculateOpposite(float length, float angle)
 {
-	return (length * cos(angle));
+	return (length * FMath::Cos(FMath::DegreesToRadians(angle)));
 }
 
-float ABaseArenaGenerator::CalculateRightTriangleAdjacent(float length, float angle)
+float ABaseArenaGenerator::CalculateAdjacent(float length, float angle)
 {
-	return (length * sin(angle));
+	return (length * FMath::Sin(FMath::DegreesToRadians(angle)));
 }
 
 FVector ABaseArenaGenerator::ForwardVectorFromYaw(float yaw)
@@ -265,15 +327,16 @@ FVector ABaseArenaGenerator::RotatedMeshOffset()
 	return FVector(0, 0, 0);
 }
 
-FVector ABaseArenaGenerator::PlacementWarping(int Midpoint, int Col, int Row, FVector OffsetRanges)
+FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection)
 {
-	float ConcaveWarp = FloorWarpConcavityStrength *
-		(FMath::Clamp((FMath::Lerp(0.02f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - Midpoint)) / Midpoint), 0.f, 1.f)) *
-		FMath::Lerp(0.02f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - Midpoint)) / Midpoint), 0.f, 1.f))), 0.f, 1.f));
+	float ConcaveWarp = ConcavityStrength *
+		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - ColMidpoint)) / RowMidpoint), 0.f, 1.f)) *
+		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
 
 	return FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
 		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
-		ConcaveWarp + ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z));
+		ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z)) 
+		+ (WarpDirection * ConcaveWarp);
 }
 
 
