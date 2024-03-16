@@ -300,11 +300,10 @@ void ABaseArenaGenerator::BuildWalls()
 		WallMeshInstances.Add(InstancedMesh);
 	}
 
-	FVector LastCachedPosition = FVector{ 0 };
+	FVector LastCachedPosition{ 0 };
+	FVector SideAngleFV{ 0 };
 
 	for (int SideIdx = 0; SideIdx < ArenaSides; SideIdx++) {
-		//Get Side angle's forward vector
-		FVector SideAngleFV = ForwardVectorFromYaw(ExteriorAngle * SideIdx);
 
 		//Get Yaw Rotation for wall pieces
 		float YawRotation = (360.f / ArenaSides) * SideIdx;
@@ -314,6 +313,9 @@ void ABaseArenaGenerator::BuildWalls()
 
 		//Adjust last cached position to offset by meshsize in side angle's direction
 		LastCachedPosition = (SideAngleFV * WallMeshSize.X) + LastCachedPosition;
+		
+		//Get Side angle's forward vector
+		SideAngleFV = ForwardVectorFromYaw(ExteriorAngle * SideIdx);
 		
 		//Orient Wall Warp Range by wall rotation.
 		FVector WallOffsetRanges = (FRotator(0, YawRotation, 0).RotateVector(WallWarpRange)).GetAbs();
@@ -373,12 +375,16 @@ void ABaseArenaGenerator::BuildRoof()
 		//Get difference of wall and roof mesh scales to offset pieces correctly
 		float MeshScalar = WallMeshSize.X / RoofMeshSize.X;
 
+		FVector LastCachedPosition{ 0 };
+		FVector RoofSideAngleFV{ 0 };
+
 		for (int RoofSideIdx = 0; RoofSideIdx < ArenaSides; RoofSideIdx++) {
-			//Determine forward vector for placement
-			FVector RoofSideAngleFV = ForwardVectorFromYaw(ExteriorAngle * RoofSideIdx);
 			
 			//Cache last used position to update through next loop
-			FVector LastCachedPosition = LastCachedPosition + ((RoofSideAngleFV * RoofMeshSize.X) * MeshScalar);
+			LastCachedPosition = LastCachedPosition + ((RoofSideAngleFV * RoofMeshSize.X) * MeshScalar);
+			
+			//Determine forward vector for placement
+			RoofSideAngleFV = ForwardVectorFromYaw(ExteriorAngle * RoofSideIdx);
 
 			//Cache Yaw rotation for the side
 			float RoofYawRotation = (360.f / ArenaSides) * RoofSideIdx;
