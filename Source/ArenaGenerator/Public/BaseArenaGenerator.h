@@ -64,7 +64,7 @@ public:
 private:
 
 
-	//Calculates the definitive parameters of arena generation.
+	//Calculates the definitive parameters of arena generation for 1 to 3 section arenas.
 	void CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules);
 
 	FORCEINLINE float CalculateOpposite(float length, float angle);
@@ -73,7 +73,7 @@ private:
 
 	FVector RotatedMeshOffset();
 
-	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection, float yaw);
+	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
 
 
 public:
