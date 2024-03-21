@@ -39,7 +39,7 @@ ABaseArenaGenerator::ABaseArenaGenerator()
 
 	//WipeArena();
 
-	ArenaBuildOrderRules = EArenaBuildOrderRules::FloorLeadsByDimensions;
+	ArenaBuildOrderRules = EArenaBuildOrderRules::WallsLeadByRadius;
 	bBuildArenaCenterOnActor = true;
 	DesiredArenaSides = 8;
 	DesiredArenaFloorDimensions = 10;
@@ -159,6 +159,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 	InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
 	ExteriorAngle = 360.f / ArenaSides;
 
+	bool bBOR_Floor = true;
 
 	switch (BuildOrderRules) {
 		case EArenaBuildOrderRules::FloorLeadsByDimensions:
@@ -199,25 +200,30 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 		case EArenaBuildOrderRules::WallsLeadByDimensions:
 			//find inscribed radius from wall mesh size, desired tps, arena sides.
 
+			bBOR_Floor = false;
+
 			TilesPerArenaSide = DesiredTilesPerSide;
 			SideLength = WallMeshSize.X * TilesPerArenaSide;
 
-			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of half of Interior angle 
+			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of adjacent angle 
 			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 			
-			ArenaDimensions = (Apothem * 2.f) / FloorMeshSize.X;
+			ArenaDimensions = FMath::CeilToInt((Apothem * 2.f) / FloorMeshSize.X);
 
 
 			break;
 		case EArenaBuildOrderRules::WallsLeadByRadius:
-			//TODO - Inscribedradius determines final amount of tiles per side 
+			//Inscribedradius determines final amount of tiles per side 
+
+			bBOR_Floor = false;
+
 			TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(DesiredInscribedRadius, InteriorAngle / 2.f)) / WallMeshSize.X);
 			SideLength = WallMeshSize.X * TilesPerArenaSide;
 
-			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of half of Interior angle 
+			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite/2 divided by sine of adjacent angle
 			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
-			ArenaDimensions = (Apothem * 2.f) / FloorMeshSize.X;
+			ArenaDimensions = FMath::CeilToInt((Apothem * 2.f) / FloorMeshSize.X);
 
 			
 			break;
@@ -228,14 +234,13 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 
 	//Calculate remaining offsets
 
-	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions-1) * -0.5f) * FVector(1, 1, 0));
+	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions-1) * -0.5f) * FVector(1, 1, 0)) + (FloorMeshSize * MeshOriginOffset(FloorOriginType));
 	
 	ArenaCenterLoc = -(
 		((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
-		FVector(0, (FloorMeshSize * ArenaDimensions * 0.5f).Y, 0));
+		FVector(0, (FloorMeshSize * (ArenaDimensions-1) * 0.5f).Y - (FloorMeshSize * MeshOriginOffset(FloorOriginType)).Y, 0));
 
-	WallOriginOffset = FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z);
-
+	WallOriginOffset = bBOR_Floor ? FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z) : FVector(-(SideLength/2), -Apothem, FloorOriginOffset.Z);
 	RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight)
 		: FVector(FloorOriginOffset.X, FloorOriginOffset.Y, WallMeshSize.Z * SideTileHeight);
 
@@ -499,6 +504,29 @@ FVector ABaseArenaGenerator::RotatedMeshOffset()
 {
 	//TODO change based on origin location
 	return FVector(0, 0, 0);
+}
+
+FVector ABaseArenaGenerator::MeshOriginOffsetScalar(EMeshOriginPlacement OriginType)
+{
+	switch (OriginType) {
+	case(EMeshOriginPlacement::XY_Positive):
+		return FVector(1);
+		break;
+	case(EMeshOriginPlacement::XY_Negative):
+		return FVector(-1, -1, 1);
+		break;
+	case(EMeshOriginPlacement::X_Positive_Y_Negative):
+		return FVector(1, -1, 1);
+		break;
+	case(EMeshOriginPlacement::X_Negative_Y_Positive):
+		return FVector(-1, 1, 1); 
+		break;
+	case(EMeshOriginPlacement::Center):
+		return FVector(-0.5, 0.5, 1);
+		break;
+	}
+
+	return FVector(1);
 }
 
 FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection)

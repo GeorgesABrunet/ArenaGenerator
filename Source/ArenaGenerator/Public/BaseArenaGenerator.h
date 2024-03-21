@@ -73,6 +73,9 @@ private:
 
 	FVector RotatedMeshOffset();
 
+	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the mesh sits bottom left corner on the origin.
+	FVector MeshOriginOffsetScalar(EMeshOriginPlacement OriginType);
+
 	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
 
 
@@ -188,6 +191,9 @@ public:
 		FFloorTransformRules FloorPlacementRules;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
+		EMeshOriginPlacement FloorOriginType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
 		FVector FloorMeshSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
@@ -213,6 +219,9 @@ public:
 		FWallTransformRules WallPlacementRules;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
+		EMeshOriginPlacement WallOriginType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FVector WallMeshSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
@@ -236,6 +245,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FRoofTransformRules RoofPlacementRules;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		EMeshOriginPlacement RoofOriginType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofMeshSize;
