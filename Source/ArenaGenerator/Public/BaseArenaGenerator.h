@@ -273,9 +273,6 @@ public:
 
 private:
 	
-	bool bBOR_Floor = true;
-
-	
 
 	//Floors
 	bool bFloorRotates = false;

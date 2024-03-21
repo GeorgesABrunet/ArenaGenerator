@@ -27,6 +27,11 @@
 #include "CoreMinimal.h"
 #include "ArenaGeneratorTypes.generated.h"
 
+/* Arena Generator Types
+* This file is meant to contain all defined data types for this plugin.
+* They are consolidated here for convenience.
+*/
+
 #pragma region Enums
 
 //Arena Build Order Rules determine what section of the arena should be generated first

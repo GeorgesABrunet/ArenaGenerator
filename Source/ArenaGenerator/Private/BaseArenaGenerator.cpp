@@ -81,38 +81,28 @@ void ABaseArenaGenerator::GenerateArena()
 	//Clear previous arena
 	WipeArena();
 
-	//TODO - branch building method for pattern list
-	if (bBuildArenaUsingPatternList) {
 
-		UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena from Patterns..."));
-		//TODO - BUILD ITERATIVELY ON PATTERN INPUT
+	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena as Three Piece..."));
+	//Calculate necessary values for generation based on the parameters provided and build order rules
+	CalculateArenaParameters(ArenaBuildOrderRules);
 
-		// for pattern : level patterns
-			//buildlevel(pattern)
+	//BUILD 1 to 3 FLOOR ARENA
+
+	//Build Floor as horizontal grid
+	if (!FloorMeshes.IsEmpty() && ArenaBuildRules.bBuildFloor) {
+		BuildFloor();
 	}
-	else{
 
-		UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena as Three Piece..."));
-		//Calculate necessary values for generation based on the parameters provided and build order rules
-		CalculateArenaParameters(ArenaBuildOrderRules);
-
-		//BUILD 1 to 3 FLOOR ARENA
-
-		//Build Floor as horizontal grid
-		if (!FloorMeshes.IsEmpty() && ArenaBuildRules.bBuildFloor) {
-			BuildFloor();
-		}
-
-		//Build Walls
-		if (!WallMeshes.IsEmpty() && ArenaBuildRules.bBuildWalls && SideTileHeight > 0) {
-			BuildWalls();
-		}
-
-		//Build Roof
-		if (!RoofMeshes.IsEmpty() && ArenaBuildRules.bBuildRoof) {
-			BuildRoof();
-		}
+	//Build Walls
+	if (!WallMeshes.IsEmpty() && ArenaBuildRules.bBuildWalls && SideTileHeight > 0) {
+		BuildWalls();
 	}
+
+	//Build Roof
+	if (!RoofMeshes.IsEmpty() && ArenaBuildRules.bBuildRoof) {
+		BuildRoof();
+	}
+
 
 }
 
@@ -164,57 +154,81 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 	bFlipRoofMeshes = RoofPlacementRules.bFlipRoofMeshes;
 	bWarpRoofPlacement = RoofPlacementRules.bWarpRoofPlacement;
 
+	//For all cases, we need these.
+	ArenaSides = FMath::Clamp(DesiredArenaSides, 3, MaxSides);
+	InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
+	ExteriorAngle = 360.f / ArenaSides;
+
 
 	switch (BuildOrderRules) {
 		case EArenaBuildOrderRules::FloorLeadsByDimensions:
 			//ArenaDimensions determines Inscribed Radius
 
 			//Floors
-			bBOR_Floor = true;
 			ArenaDimensions = DesiredArenaFloorDimensions;
 			InscribedRadius = (FloorMeshSize.X * (DesiredArenaFloorDimensions - 1) * 0.5);
 
 			//Walls
-			ArenaSides = FMath::Clamp(DesiredArenaSides, 3, MaxSides);
-			InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
-			ExteriorAngle = 360.f / ArenaSides;
-
 			SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle/2.f);
-				//abs((ArenaSides > 4 ? InscribedRadius/2 : InscribedRadius) * FMath::Cos(InteriorAngle / 2));
+				
 			TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength/WallMeshSize.X), 
 				1, //Min
 				MaxTilesPerSideRow //Max
 			);
-				
+
 			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+				
 			break;
 		case EArenaBuildOrderRules::FloorLeadsByRadius:
-			//TODO - InscribedRadius determines arenadims w mesh size
+			//InscribedRadius determines arenadims w mesh size
 
 			//Floors
-			bBOR_Floor = true;
-			InscribedRadius = DesiredInscribedRadius;
-			ArenaDimensions = (InscribedRadius / FloorMeshSize.X) > 2 ? FMath::Floor(InscribedRadius / FloorMeshSize.X) : 2;
+			ArenaDimensions = (DesiredInscribedRadius / FloorMeshSize.X) > 2 ? FMath::Floor(DesiredInscribedRadius / FloorMeshSize.X) : 2;
+			InscribedRadius = (FloorMeshSize.X * (ArenaDimensions) * 0.5);
 
 			//Walls
+			SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);
+			TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / WallMeshSize.X),
+				1, //Min
+				MaxTilesPerSideRow //Max
+			);
+
+			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 			break;
 		case EArenaBuildOrderRules::WallsLeadByDimensions:
-			//TODO - find inscribed radius from wall mesh size, desired tps, sides 
+			//find inscribed radius from wall mesh size, desired tps, arena sides.
 
-			bBOR_Floor = false;
+			TilesPerArenaSide = DesiredTilesPerSide;
+			SideLength = WallMeshSize.X * TilesPerArenaSide;
+
+			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of half of Interior angle 
+			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+			
+			ArenaDimensions = (Apothem * 2.f) / FloorMeshSize.X;
+
+
 			break;
 		case EArenaBuildOrderRules::WallsLeadByRadius:
 			//TODO - Inscribedradius determines final amount of tiles per side 
+			TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(DesiredInscribedRadius, InteriorAngle / 2.f)) / WallMeshSize.X);
+			SideLength = WallMeshSize.X * TilesPerArenaSide;
 
-			bBOR_Floor = false;
+			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of half of Interior angle 
+			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+
+			ArenaDimensions = (Apothem * 2.f) / FloorMeshSize.X;
+
+			
 			break;
 
 		default:
 			break;
 	}
-	
-	FloorOriginOffset = (FloorMeshSize * ArenaDimensions * -0.5f) * FVector(1, 1, 0);
+
+	//Calculate remaining offsets
+
+	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions-1) * -0.5f) * FVector(1, 1, 0));
 	
 	ArenaCenterLoc = -(
 		((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
@@ -374,6 +388,7 @@ void ABaseArenaGenerator::BuildRoof()
 
 		//Get difference of wall and roof mesh scales to offset pieces correctly
 		float MeshScalar = WallMeshSize.X / RoofMeshSize.X;
+		int RoofTilesPerSide = FMath::Clamp(TilesPerArenaSide * MeshScalar, 1, MaxTilesPerSideRow);
 
 		FVector LastCachedPosition{ 0 };
 		FVector RoofSideAngleFV{ 0 };
@@ -394,7 +409,7 @@ void ABaseArenaGenerator::BuildRoof()
 				
 			FVector RoofOffsetRanges = RoofWarpRange.RotateAngleAxis(RoofYawRotation, FVector(0, 0, 1)).GetAbs();
 
-			for (int RoofLen = 0; RoofLen < TilesPerArenaSide; ++RoofLen) {
+			for (int RoofLen = 0; RoofLen < RoofTilesPerSide; ++RoofLen) {
 
 				LastCachedPosition = (RoofSideAngleFV * FVector(RoofMeshSize.X, RoofMeshSize.X, 0)) * (RoofLen > 0 ? 1 : 0) + LastCachedPosition;
 
