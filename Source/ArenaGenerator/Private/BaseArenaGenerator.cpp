@@ -208,7 +208,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of adjacent angle 
 			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 			
-			ArenaDimensions = FMath::CeilToInt((Apothem * 2.f) / FloorMeshSize.X);
+			ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / FloorMeshSize.X);
 
 
 			break;
@@ -223,7 +223,7 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite/2 divided by sine of adjacent angle
 			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
-			ArenaDimensions = FMath::CeilToInt((Apothem * 2.f) / FloorMeshSize.X);
+			ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / FloorMeshSize.X);
 
 			
 			break;
@@ -234,16 +234,17 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 
 	//Calculate remaining offsets
 
-	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions - 1) * -0.5f) * FVector(1, 1, 0) * FloorMeshScale) + (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType)) 
-		- (bMoveFloorWhenRotated ? RotatedMeshOffset(FloorOriginType, FloorMeshSize, 0) : FVector(0));
+	FloorOriginOffset = (((FloorMeshSize * (ArenaDimensions - 1) * -0.5f) * FloorMeshScale) + (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType))
+		- (bMoveFloorWhenRotated ? RotatedMeshOffset(FloorOriginType, FloorMeshSize, 0) : FVector(0))) * FVector(1, 1, 0);
 	
 	ArenaCenterLoc = -(
 		((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
 		FVector(0, (FloorMeshSize * (ArenaDimensions-1) * 0.5f).Y - (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType)).Y, 0));
 
-	WallOriginOffset = bBOR_Floor ? FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z) : FVector(-(SideLength/2), -Apothem, FloorOriginOffset.Z);
-	RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight)
-		: FVector(FloorOriginOffset.X, FloorOriginOffset.Y, WallMeshSize.Z * SideTileHeight);
+	WallOriginOffset = bBOR_Floor ? FVector(ArenaCenterLoc.X, -ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z + FloorMeshSize.Z) : FVector(-(SideLength / 2), -Apothem, FloorOriginOffset.Z + FloorMeshSize.Z);
+
+	RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight + WallOriginOffset.Z)
+		: FVector(FloorOriginOffset.X, FloorOriginOffset.Y, WallMeshSize.Z * SideTileHeight + WallOriginOffset.Z);
 
 }
 
@@ -355,6 +356,7 @@ void ABaseArenaGenerator::BuildWalls()
 				FRotator(0, YawRotation + (bAddWallRotation ? ArenaStream.FRandRange(0.f, 360.f) : 0.f), 0), // Rotation
 					WallOriginOffset + LastCachedPosition + FVector(0, 0, WallMeshSize.Z * Height) //Location : Origin offset & tiling
 					+ (bWarpWallPlacement ? PlacementWarping(ColMidpoint, RowMidpoint, Len, Height, WallOffsetRanges, WallWarpConcavityStrength, SideAngleRV) : FVector(0)) //LocationWarping
+					+ (bBringWallBack ? SideAngleRV * -WallMeshSize.Y : FVector(0))
 				,WallMeshScale);
 
 				//TODO pattern matching for wall meshes
@@ -383,7 +385,6 @@ void ABaseArenaGenerator::BuildRoof()
 			NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
 
 		InstancedMesh->SetStaticMesh(Mesh);
-		//TODO - Set material
 		if (RoofMaterial) {
 			InstancedMesh->SetMaterial(0, RoofMaterial);
 		}
@@ -396,8 +397,9 @@ void ABaseArenaGenerator::BuildRoof()
 	if (bBuildRoofAsCone) {
 
 		//Get difference of wall and roof mesh scales to offset pieces correctly
-		float MeshScalar = WallMeshSize.X / RoofMeshSize.X;
-		int RoofTilesPerSide = FMath::Clamp(TilesPerArenaSide * MeshScalar, 1, MaxTilesPerSideRow);
+		float MeshScalar = (WallMeshSize.X == RoofMeshSize.X) ? 1.f : WallMeshSize.X / RoofMeshSize.X;
+		int RoofTilesPerSide = (WallMeshSize.X == RoofMeshSize.X) ? TilesPerArenaSide : //FMath::Clamp(TilesPerArenaSide * MeshScalar, 1, MaxTilesPerSideRow);
+		FMath::Floor((2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f)) / RoofMeshSize.X);
 
 		FVector LastCachedPosition{ 0 };
 		FVector RoofSideAngleFV{ 0 };
@@ -429,7 +431,7 @@ void ABaseArenaGenerator::BuildRoof()
 						LastCachedPosition //LastCachedPosition
 						+ RoofOriginOffset //Offset and position
 						+ FVector(0, 0, RoofMeshSize.Z * RoofHeightIdx) // Height Adjustment
-						+ (bBringRoofForward ? RoofSideAngleRV * WallMeshSize.Y : FVector(0)) 
+						+ (bBringRoofForward ? RoofSideAngleRV * WallMeshSize.Y : (bBringRoofBack ? RoofSideAngleRV * -WallMeshSize.Y : FVector(0))) //If bringing roof forward or back
 						+ (bRoofIncrementsForwardEachLevel ? (RoofSideAngleRV * RoofHeightIdx * RoofMeshSize.Y) : FVector(0))
 					
 					,RoofMeshScale);

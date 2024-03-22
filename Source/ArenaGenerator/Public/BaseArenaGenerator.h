@@ -223,6 +223,9 @@ public:
 		EMeshOriginPlacement WallOriginType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
+		bool bBringWallBack = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
 		FVector WallMeshSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
@@ -249,6 +252,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		EMeshOriginPlacement RoofOriginType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		bool bBringRoofBack = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofMeshSize;
