@@ -249,12 +249,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FRoofTransformRules RoofPlacementRules;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		EMeshOriginPlacement RoofOriginType;
+		bool bRoofRotationIsQuad = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		bool bBringRoofBack = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
+		EMeshOriginPlacement RoofOriginType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
 		FVector RoofMeshSize;
