@@ -234,11 +234,12 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 
 	//Calculate remaining offsets
 
-	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions-1) * -0.5f) * FVector(1, 1, 0)) + (FloorMeshSize * MeshOriginOffset(FloorOriginType));
+	FloorOriginOffset = ((FloorMeshSize * (ArenaDimensions - 1) * -0.5f) * FVector(1, 1, 0) * FloorMeshScale) + (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType)) 
+		- (bMoveFloorWhenRotated ? RotatedMeshOffset(FloorOriginType, FloorMeshSize, 0) : FVector(0));
 	
 	ArenaCenterLoc = -(
 		((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
-		FVector(0, (FloorMeshSize * (ArenaDimensions-1) * 0.5f).Y - (FloorMeshSize * MeshOriginOffset(FloorOriginType)).Y, 0));
+		FVector(0, (FloorMeshSize * (ArenaDimensions-1) * 0.5f).Y - (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType)).Y, 0));
 
 	WallOriginOffset = bBOR_Floor ? FVector(ArenaCenterLoc.X, ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z) : FVector(-(SideLength/2), -Apothem, FloorOriginOffset.Z);
 	RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight)
@@ -272,14 +273,17 @@ void ABaseArenaGenerator::BuildFloor()
 		for (int Col = 0; Col < ArenaDimensions; Col++) {
 			//Cache some random value between 0 & 3 to use for rotating floor pieces
 			int RandomVal = bFloorRotates ? ArenaStream.RandRange(0, 3) : 0;
+			float YawAngle = 90.f * RandomVal;
 
 			//Determine floor tile transform
 			FTransform FloorTileTransform = FTransform(
-				FRotator(0.f, 90.f * RandomVal, 0.f), //Rotation
+				FRotator(0.f, YawAngle, 0.f), //Rotation
+
 				FloorOriginOffset // Location : Floor Origin Offset
 				+ FVector(FloorMeshSize.X * Row * FloorMeshScale.X, FloorMeshSize.Y * Col * FloorMeshScale.Y, 0)//Location : MeshSize * indices
-				+ (bWarpFloorPlacement ? PlacementWarping(FloorMidpoint, FloorMidpoint, Col, Row, FloorWarpRange, FloorWarpConcavityStrength, FVector(0,0,1)) : FVector(0)) //TODO floor placement warping 
-				+ (bMoveFloorWhenRotated ? RotatedMeshOffset() : FVector(0)) // Move floor if rotated
+				+ (bWarpFloorPlacement ? PlacementWarping(FloorMidpoint, FloorMidpoint, Col, Row, FloorWarpRange, FloorWarpConcavityStrength, FVector(0,0,1)) : FVector(0)) //floor placement warping 
+				+ (bMoveFloorWhenRotated && bFloorRotates ? RotatedMeshOffset(FloorOriginType, FloorMeshSize, RandomVal) : FVector(0)) // Move floor if rotated
+
 				,FVector(FloorMeshScale.X, FloorMeshScale.Y, FloorMeshScale.Z + (bWarpFloorScale ? ArenaStream.FRandRange(0, 0.25f ) : 0.f)) //Scale
 			);
 			
@@ -500,33 +504,89 @@ FVector ABaseArenaGenerator::ForwardVectorFromYaw(float yaw)
 	0.f);
 }
 
-FVector ABaseArenaGenerator::RotatedMeshOffset()
+FVector ABaseArenaGenerator::RotatedMeshOffset(EMeshOriginPlacement OriginType, FVector& MeshSize, int RotationIndex)
 {
-	//TODO change based on origin location
-	return FVector(0, 0, 0);
+	float X1 = 0;
+	float Y1 = 0;
+
+	switch (OriginType) {
+	case(EMeshOriginPlacement::XY_Positive):
+		if (RotationIndex == 1) {
+			X1 = MeshSize.X;
+		}
+		else if (RotationIndex == 2) {
+			X1 = MeshSize.X; Y1 = MeshSize.Y;
+		}
+		else if (RotationIndex == 3) {
+			Y1 = MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::XY_Negative):
+		if (RotationIndex == 0) {
+			X1 = MeshSize.X; Y1 = MeshSize.Y;
+		}
+		else if (RotationIndex == 1) {
+			Y1 = MeshSize.Y;
+		}
+		else if (RotationIndex == 3) {
+			X1 = MeshSize.X;
+		}
+		break;
+
+	case(EMeshOriginPlacement::X_Positive_Y_Negative):
+		if (RotationIndex == 0) {
+			Y1 = MeshSize.Y;
+		}
+		else if (RotationIndex == 2) {
+			X1 = MeshSize.X; 
+		}
+		else if (RotationIndex == 3) {
+			X1 = MeshSize.X; Y1 = MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::X_Negative_Y_Positive):
+		if (RotationIndex == 0) {
+			X1 = MeshSize.X;
+		}
+		else if (RotationIndex == 1) {
+			X1 = MeshSize.X; Y1 = MeshSize.Y;
+		}
+		else if (RotationIndex == 2) {
+			Y1 = MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::Center):
+		return FVector(0);
+		break;
+	}
+
+	return FVector(X1, Y1, 0);
 }
 
 FVector ABaseArenaGenerator::MeshOriginOffsetScalar(EMeshOriginPlacement OriginType)
 {
 	switch (OriginType) {
 	case(EMeshOriginPlacement::XY_Positive):
-		return FVector(1);
+		return FVector(-0.5, -0.5, 1);
 		break;
 	case(EMeshOriginPlacement::XY_Negative):
-		return FVector(-1, -1, 1);
+		return FVector(0.5, 0.5, 1);
 		break;
 	case(EMeshOriginPlacement::X_Positive_Y_Negative):
-		return FVector(1, -1, 1);
+		return FVector(-0.5, 0.5, 1);
 		break;
 	case(EMeshOriginPlacement::X_Negative_Y_Positive):
-		return FVector(-1, 1, 1); 
+		return FVector(0.5, -0.5, 1); 
 		break;
 	case(EMeshOriginPlacement::Center):
-		return FVector(-0.5, 0.5, 1);
+		return FVector(0, 0, 1);
 		break;
 	}
 
-	return FVector(1);
+	return FVector(0);
 }
 
 FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection)
