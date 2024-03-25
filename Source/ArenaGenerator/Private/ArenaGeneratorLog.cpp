@@ -22,21 +22,23 @@
  * SOFTWARE.
  */
 
-#pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "ArenaGeneratorLog.h"
+#include "ArenaGeneratorSettings.h"
+#include "Engine/Engine.h"
 
-class FArenaGeneratorModule : public IModuleInterface
+DEFINE_LOG_CATEGORY(LogArenaGenerator);
+/*
+bool ShowLogOnScreen(float& _duration)
 {
-public:
+	UArenaGeneratorSettings* Settings = GetMutableDefault<UArenaGeneratorSettings>();
+	_duration = Settings->PrintDebugDuration;
+	return Settings->OnScreenPrintDebug;
+}*/
 
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-private:
-	void RegisterSettings();
-	void UnregisterSettings();
-	bool HandleSettingsSaved();
-};
+bool ShowLogsOnScreen(float& Duration)
+{
+	UArenaGeneratorSettings* Settings = GetMutableDefault<UArenaGeneratorSettings>();
+	Duration = Settings->PrintDebugDuration;
+	return Settings->OnScreenPrintDebug;
+}

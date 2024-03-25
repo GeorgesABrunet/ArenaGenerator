@@ -22,21 +22,12 @@
  * SOFTWARE.
  */
 
-#pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "ArenaGeneratorSettings.h"
 
-class FArenaGeneratorModule : public IModuleInterface
+UArenaGeneratorSettings::UArenaGeneratorSettings(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-public:
-
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-private:
-	void RegisterSettings();
-	void UnregisterSettings();
-	bool HandleSettingsSaved();
-};
+	OnScreenPrintDebug = false;
+	PrintDebugDuration = 30.0f;
+}

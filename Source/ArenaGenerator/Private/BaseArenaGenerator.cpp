@@ -27,9 +27,7 @@
 #include "Math/RandomStream.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include <Kismet/KismetMathLibrary.h>
-
-
-DEFINE_LOG_CATEGORY(LogArenaGenerator)
+#include "ArenaGeneratorLog.h"
 
 // Sets default values
 ABaseArenaGenerator::ABaseArenaGenerator()
@@ -82,7 +80,8 @@ void ABaseArenaGenerator::GenerateArena()
 	WipeArena();
 
 
-	UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena as Three Piece..."));
+	ArenaGenLog_Info("Generating Arena...");
+	//UE_LOG(LogArenaGenerator, Log, TEXT("Generating Arena as Three Piece..."));
 	//Calculate necessary values for generation based on the parameters provided and build order rules
 	CalculateArenaParameters(ArenaBuildOrderRules);
 
@@ -108,7 +107,8 @@ void ABaseArenaGenerator::GenerateArena()
 
 void ABaseArenaGenerator::WipeArena()
 {
-	UE_LOG(LogArenaGenerator, Log, TEXT("Wiping Arena..."));
+	ArenaGenLog_Info("Wiping Arena...");
+	//UE_LOG(LogArenaGenerator, Log, TEXT("Wiping Arena..."));
 
 	for (UInstancedStaticMeshComponent* Inst : FloorMeshInstances) {
 		Inst->DestroyComponent();
@@ -251,7 +251,8 @@ void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOr
 
 void ABaseArenaGenerator::BuildFloor()
 {
-	UE_LOG(LogArenaGenerator, Log, TEXT("Building Floor..."));
+	ArenaGenLog_Info("Building Floor...");
+	//UE_LOG(LogArenaGenerator, Log, TEXT("Building Floor..."));
 
 	//Cache midpoint index
 	int FloorMidpoint = FMath::Floor(ArenaDimensions / 2);
@@ -296,7 +297,8 @@ void ABaseArenaGenerator::BuildFloor()
 				FloorMeshInstances[FloorMeshIdx]->AddInstance(FloorTileTransform);
 			}
 			else {
-				UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Floor Mesh Instance index: %d"), FloorMeshIdx);
+				ArenaGenLog_Error("Could not find Floor Mesh Instance index: %d", FloorMeshIdx);
+				//UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Floor Mesh Instance index: %d"), FloorMeshIdx);
 			}
 		}
 	}
@@ -304,7 +306,8 @@ void ABaseArenaGenerator::BuildFloor()
 
 void ABaseArenaGenerator::BuildWalls()
 {
-	UE_LOG(LogArenaGenerator, Log, TEXT("Building Wall..."));
+	ArenaGenLog_Info("Building Walls...");
+	//UE_LOG(LogArenaGenerator, Log, TEXT("Building Wall..."));
 
 	//cache midpoints
 	int ColMidpoint = FMath::Clamp(SideTileHeight / 2, 1, SideTileHeight);
@@ -370,7 +373,8 @@ void ABaseArenaGenerator::BuildWalls()
 					WallMeshInstances[WallMeshIdx]->AddInstance(WallTileTransform);
 				}
 				else {
-					UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Wall Mesh Instance index: %d"), WallMeshIdx);
+					ArenaGenLog_Error("Could not find Wall Mesh Instance index: %d", WallMeshIdx);
+					
 				}
 				
 			}
@@ -381,7 +385,8 @@ void ABaseArenaGenerator::BuildWalls()
 
 void ABaseArenaGenerator::BuildRoof()
 {
-	UE_LOG(LogArenaGenerator, Log, TEXT("Building Roof..."));
+	ArenaGenLog_Info("Building Roofs...");
+	
 
 	for (UStaticMesh* Mesh : RoofMeshes) {
 		UInstancedStaticMeshComponent* InstancedMesh =
@@ -450,7 +455,8 @@ void ABaseArenaGenerator::BuildRoof()
 						RoofMeshInstances[RoofMeshIdx]->AddInstance(RoofTileTransform);
 					}
 					else {
-						UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Roof Mesh Instance index: %d"), RoofMeshIdx);
+						ArenaGenLog_Error("Could not find Roof Mesh Instance index: %d", RoofMeshIdx);
+						
 					}
 					
 				}
@@ -486,7 +492,7 @@ void ABaseArenaGenerator::BuildRoof()
 					RoofMeshInstances[RoofMeshIdx]->AddInstance(RoofTileTransform);
 				}
 				else {
-					UE_LOG(LogArenaGenerator, Error, TEXT("Could not find Roof Mesh Instance index: %d"), RoofMeshIdx);
+					ArenaGenLog_Error("Could not find Roof Mesh Instance index: %d", RoofMeshIdx);
 				}
 			}
 		}

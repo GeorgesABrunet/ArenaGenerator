@@ -28,8 +28,6 @@
 #include "ArenaGeneratorTypes.h"
 #include "BaseArenaGenerator.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogArenaGenerator, All, All)
-
 UCLASS(Blueprintable, ClassGroup = "Arena Generator")
 class ARENAGENERATOR_API ABaseArenaGenerator : public AActor
 {

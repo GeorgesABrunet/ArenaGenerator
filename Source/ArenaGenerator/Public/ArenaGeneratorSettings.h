@@ -25,18 +25,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "ArenaGeneratorSettings.generated.h"
 
-class FArenaGeneratorModule : public IModuleInterface
+/**
+ * You can add parameters to this settings file for convenience.
+ */
+UCLASS(config = Game, defaultconfig)
+class ARENAGENERATOR_API UArenaGeneratorSettings : public UObject
 {
+	GENERATED_BODY()
+
 public:
+	UArenaGeneratorSettings(const FObjectInitializer& ObjectInitializer);
 
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	// Show some logs on the screen
+	UPROPERTY(EditAnywhere, config, Category = "Debug")
+		bool OnScreenPrintDebug;
 
-private:
-	void RegisterSettings();
-	void UnregisterSettings();
-	bool HandleSettingsSaved();
+	// Duration of the screen logs
+	UPROPERTY(EditAnywhere, config, Category = "Debug", meta = (EditCondition = "OnScreenPrintDebug"))
+		float PrintDebugDuration;
 };
