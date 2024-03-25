@@ -439,7 +439,7 @@ void ABaseArenaGenerator::BuildRoof()
 						+ FVector(0, 0, RoofMeshSize.Z * RoofHeightIdx) // Height Adjustment
 						+ (bBringRoofForward ? RoofSideAngleRV * WallMeshSize.Y : (bBringRoofBack ? RoofSideAngleRV * -WallMeshSize.Y : FVector(0))) //If bringing roof forward or back
 						+ (bRoofIncrementsForwardEachLevel ? (RoofSideAngleRV * RoofHeightIdx * RoofMeshSize.Y) : FVector(0))//if we move it forward each level
-						+ (bRoofRotates && bMoveRoofWhenRotated ? RoofSideAngleRV * RotatedMeshOffset(RoofOriginType, RoofMeshSize, RandomVal) : FVector(0)) //Location offsets from random rotation
+						+ (bRoofRotates && bMoveRoofWhenRotated ? OffsetMeshAlongDirections(RoofSideAngleFV, RoofSideAngleRV, RoofOriginType, RoofMeshSize, RandomVal) : FVector(0))//Location offsets from random rotation
 						
 					
 					,RoofMeshScale);
@@ -578,6 +578,68 @@ FVector ABaseArenaGenerator::RotatedMeshOffset(EMeshOriginPlacement OriginType, 
 
 	return FVector(X1, Y1, 0);
 }
+
+FVector ABaseArenaGenerator::OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EMeshOriginPlacement OriginType, const FVector& MeshSize, int RotationIndex)
+{
+	FVector Xspan;
+	FVector Yspan;
+
+	switch (OriginType) {
+	case(EMeshOriginPlacement::XY_Positive):
+		if (RotationIndex == 1) {
+			Xspan = FV * MeshSize.X;
+		}
+		else if (RotationIndex == 2) {
+			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+		}
+		else if (RotationIndex == 3) {
+			Yspan = RV * MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::XY_Negative):
+		if (RotationIndex == 0) {
+			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+		}
+		else if (RotationIndex == 1) {
+			Yspan = RV * MeshSize.Y;
+		}
+		else if (RotationIndex == 3) {
+			Xspan = FV * MeshSize.X;
+		}
+		break;
+
+	case(EMeshOriginPlacement::X_Positive_Y_Negative):
+		if (RotationIndex == 0) {
+			Yspan = RV * MeshSize.Y;
+		}
+		else if (RotationIndex == 2) {
+			Xspan = FV * MeshSize.X;
+		}
+		else if (RotationIndex == 3) {
+			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::X_Negative_Y_Positive):
+		if (RotationIndex == 0) {
+			Xspan = FV * MeshSize.X;
+		}
+		else if (RotationIndex == 1) {
+			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+		}
+		else if (RotationIndex == 2) {
+			Yspan = RV * MeshSize.Y;
+		}
+		break;
+
+	case(EMeshOriginPlacement::Center):
+		return FVector(0);
+		break;
+	}
+	return Xspan + Yspan;
+}
+
 
 FVector ABaseArenaGenerator::MeshOriginOffsetScalar(EMeshOriginPlacement OriginType)
 {

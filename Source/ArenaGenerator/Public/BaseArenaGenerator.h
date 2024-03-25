@@ -71,8 +71,11 @@ private:
 	FORCEINLINE float CalculateAdjacent(float length, float angle);
 	FORCEINLINE FVector ForwardVectorFromYaw(float yaw);
 
-	//Returns a scalar vector to multiply a mesh size to get the necessary off such that the mesh spans positively across X and Y axes from the origin. This is useful for meshes that need to be moved when rotated.
+	//Returns a scalar vector to multiply a mesh size to get the necessary off such that the mesh spans positively across X and Y axes from the origin. Optimized for absolute directions, incorrect for angled directions.
 	FVector RotatedMeshOffset(EMeshOriginPlacement OriginType, FVector& MeshSize, int RotationIndex);
+
+	//Offsets mesh along FV and RV based on origin type. Optimized for angled directions.
+	FVector OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EMeshOriginPlacement OriginType, const FVector& MeshSize, int RotationIndex);
 
 	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the origin sits in the center of the mesh.
 	FVector MeshOriginOffsetScalar(EMeshOriginPlacement OriginType);
