@@ -24,11 +24,3 @@
 
 
 #include "ArenaGeneratorTypes.h"
-/*
-ArenaGeneratorTypes::ArenaGeneratorTypes()
-{
-}
-
-ArenaGeneratorTypes::~ArenaGeneratorTypes()
-{
-}*/

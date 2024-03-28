@@ -25,6 +25,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
 #include "ArenaGeneratorTypes.generated.h"
 
 /* Arena Generator Types
@@ -41,15 +42,19 @@
 UENUM(BlueprintType)
 enum class EArenaBuildOrderRules : uint8
 {
-	FloorLeadsByDimensions,
-	FloorLeadsByRadius,
-	WallsLeadByDimensions,
-	WallsLeadByRadius, 
+	GridLeadsByDimensions,
+	GridLeadsByRadius,
+	PolygonLeadByDimensions,
+	PolygonLeadByRadius, 
 
 };
 
+/*
+* Origin Placement Type determines where the local bounds of the
+* relevant mesh/actor/object extends in relation to the origin.
+*/
 UENUM(BlueprintType)
-enum class EMeshOriginPlacement : uint8
+enum class EOriginPlacementType : uint8
 {
 	XY_Positive,
 	XY_Negative,
@@ -60,100 +65,48 @@ enum class EMeshOriginPlacement : uint8
 	//...
 };
 
+/*
+* Arena Section Type determines how the pattern should be built. 
+* HorizontalGrid = Floor or ceiling/roof in most cases,
+* Polygon = Walls or Domed roofs and the like,
+*/
+UENUM(BlueprintType)
+enum class EArenaSectionType : uint8
+{
+	HorizontalGrid,
+	Polygon,
+};
+
+/*
+* What orientation modification logic we should use during placement
+*/
+UENUM(BlueprintType)
+enum class EPlacementOrientationRule : uint8
+{
+	None,
+	RotateByYP,//
+	RotateYawRandomly, //random float between 0-360 will be assigned to the yaw
+	//...
+};
 #pragma endregion
 
 #pragma region Structs
-
 USTRUCT(BlueprintType)
-struct ARENAGENERATOR_API FThreePieceArenaBuildRules : public FTableRowBase
+struct ARENAGENERATOR_API FArenaMesh : public FTableRowBase
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bBuildFloor = true;
+	EOriginPlacementType OriginType = EOriginPlacementType::XY_Positive;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bBuildWalls = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bBuildRoof = true;
-};
-
-// Floor Rule Configuration determine behaviors to consider during transform calculation
-USTRUCT(BlueprintType)
-struct ARENAGENERATOR_API FFloorTransformRules : public FTableRowBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bFloorRotates = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bMoveFloorWhenRotated = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bWarpFloorPlacement = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bWarpFloorScale = false;
-	//...
-};
-
-// Wall Rule Configuration determine behaviors to consider during transform calculation
-USTRUCT(BlueprintType)
-struct ARENAGENERATOR_API FWallTransformRules : public FTableRowBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bWarpWallPlacement = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bAddWallRotation = false;
-	//...
-};
-
-// Roof Rule Configuration determine behaviors to consider during transform calculation
-USTRUCT(BlueprintType)
-struct ARENAGENERATOR_API FRoofTransformRules : public FTableRowBase
-{
-	GENERATED_BODY()
-
-	//Should roof build as a flat grid or a cone.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bBuildRoofAsCone = false;
-
-	//Bring roof forward by width of walls. This may be preferable for some meshes that are angled.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bBringRoofForward = false;
-	
-	//If the roof should move forward by its horizontal projection each level
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bRoofIncrementsForwardEachLevel = false;
-
-	//Should we rotate the roof by increments
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bRoofShouldRotate = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bMoveRoofWhenRotated = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bFlipRoofMeshes = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bWarpRoofPlacement = false;
-	
+	UStaticMesh* Mesh;
 };
 
 USTRUCT(BlueprintType)
-struct ARENAGENERATOR_API FArenaMeshConfig : public FTableRowBase
+struct ARENAGENERATOR_API FArenaMeshGroupConfig : public FTableRowBase
 {
 	GENERATED_BODY()
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EMeshOriginPlacement OriginType = EMeshOriginPlacement::XY_Positive;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector MeshDimensions = FVector{ 500, 500, 500 };
@@ -162,12 +115,84 @@ struct ARENAGENERATOR_API FArenaMeshConfig : public FTableRowBase
 	FVector MeshScale = FVector{ 1 };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UStaticMesh* ArenaMesh;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UMaterialInterface* MeshMaterial;
+	TArray<FArenaMesh> GroupMeshes;
 
 };
 
+USTRUCT(BlueprintType)
+struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//Determine the type of section this will be.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+	EArenaSectionType SectionType = EArenaSectionType::Polygon;
+
+	//How many times should we repeat this pattern?
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+		int SectionAmount = 1;
+
+	//Which Mesh Group index should be referred to for mesh picking patterns
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+		int MeshGroupId = 1;
+
+	//Whether or not this section should update the origin offset as it iterates the SectionAmount
+	//TODO - not yet implemented
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+		bool bUpdatesOriginOffsetHeight = true;
+
+	// ROTATE PARAMS
+	
+	//Default rotation will be applied before placement logic affects rotation additively.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+		FRotator DefaultRotation = FRotator(0.f);
+
+	//Should we rotated pieces in this section and how
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+		EPlacementOrientationRule RotationRule = EPlacementOrientationRule::None;
+
+	//We divide 360 by this number and use the result as what to multiply by a random int value
+	//to get clean rotations
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+		int YawPossibilities = 4;
+
+	//WARP PARAMS
+
+	//Whether we should warp placement or not
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Warping")
+		bool bWarpPlacement = false;
+
+	// This determines the per-axis range of warping.
+	// For polygons this will respectively affect warping along forward =x, right=y, up=z vectors.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Warping")
+		FVector WarpRange = FVector(0.f);
+
+	// This determines how concave should the section pieces be.  
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Warping")
+		float WarpConcavityStrength = 0.f;
+
+	//OFFSET PARAMS
+
+	//How many times should we multiply the right vector of the placement direction by the mesh size
+	//at start of placement for the section. This allows offseting pieces forward or backwards
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Offsets")
+		float InitOffsetByWidthScalar = 0.f;
+
+	//For however many levels there are this section, how much should we offset the next level through the 
+	// placement direction's right vector * the mesh width. 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Offsets")
+		float OffsetByWidthIncrement = 0.f;
+
+
+	//How many times should we initially offset this section by this scalar of the associated mesh groups height.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Offsets")
+		float InitOffsetByHeightScalar = 0.f;
+
+	//For however many levels there are this section, how much should we offset the next level's
+	//height increment by in relation to its mesh height. Default is 1.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Offsets")
+		float OffsetByHeightIncrement = 1.f;
+	
+};
 #pragma endregion
 

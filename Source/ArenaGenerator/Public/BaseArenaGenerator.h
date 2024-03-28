@@ -41,42 +41,43 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
+	//Will generate an Arena based on provided patterns in PatternList
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena")
-	void GenerateArena();
+	virtual void GenerateArena();
 
+	//Deletes all instances associated with actor. Does not clear parameters.
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena")
-	void WipeArena();
+	virtual void WipeArena();
 
-	void ParametrizeGeneration();
+	//Specific function for building out PatternList
+	void BuildPatterns();
 
-	//For Conventional 3-Piece Building
-	void BuildFloor();
-	void BuildWalls();
-	void BuildRoof();
+	UFUNCTION(BlueprintCallable, Category = "Arena")
+	virtual void BuildSection(FArenaSectionBuildRules& Section);
 
 
 private:
 
 
 	//Calculates the definitive parameters of arena generation for 1 to 3 section arenas.
-	void CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules);
+	virtual void CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules);
 
 	FORCEINLINE float CalculateOpposite(float length, float angle);
 	FORCEINLINE float CalculateAdjacent(float length, float angle);
 	FORCEINLINE FVector ForwardVectorFromYaw(float yaw);
 
 	//Returns a scalar vector to multiply a mesh size to get the necessary off such that the mesh spans positively across X and Y axes from the origin. Optimized for absolute directions, incorrect for angled directions.
-	FVector RotatedMeshOffset(EMeshOriginPlacement OriginType, FVector& MeshSize, int RotationIndex);
+	FVector RotatedMeshOffset(EOriginPlacementType OriginType, FVector& MeshSize, int RotationIndex);
 
 	//Offsets mesh along FV and RV based on origin type. Optimized for angled directions.
-	FVector OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EMeshOriginPlacement OriginType, const FVector& MeshSize, int RotationIndex);
+	FVector OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EOriginPlacementType OriginType, const FVector& MeshSize, int RotationIndex);
 
 	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the origin sits in the center of the mesh.
-	FVector MeshOriginOffsetScalar(EMeshOriginPlacement OriginType);
+	FVector MeshOriginOffsetScalar(EOriginPlacementType OriginType);
 
 	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
 
@@ -111,18 +112,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
 	int32 TilesPerArenaSide = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
-	FVector ArenaCenterLoc;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
-	FVector FloorOriginOffset;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
-	FVector WallOriginOffset;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
-	FVector RoofOriginOffset;
-
 #pragma endregion
 
 //These are values the user can play around with. They will adhere to the arena build
@@ -130,13 +119,10 @@ public:
 #pragma region User Inputs - Build Rules
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	EArenaBuildOrderRules ArenaBuildOrderRules = EArenaBuildOrderRules::FloorLeadsByDimensions;
+	EArenaBuildOrderRules ArenaBuildOrderRules = EArenaBuildOrderRules::PolygonLeadByDimensions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	bool bBuildArenaUsingPatternList = false;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
-	bool bBuildArenaCenterOnActor = true;
+	EOriginPlacementType ArenaPlacementOnActor = EOriginPlacementType::Center;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	int32 ArenaSeed;
@@ -145,7 +131,7 @@ public:
 	FRandomStream ArenaStream;
 
 	//This determines if we should load mesh assets in asynchronously during generation. 
-	//By default we load assets in synchronously.
+	//By default we load assets in synchronously. TODO - async loading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bLoadMeshesAsync = false;
 
@@ -153,172 +139,66 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
 	bool bUseHierarchicalInstances = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
-	FThreePieceArenaBuildRules ArenaBuildRules;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 	int32 DesiredArenaSides = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 	int32 DesiredArenaFloorDimensions = 0;
 
 	//Will determine the horizontal span of the arena. 
 	//Final arena radius will differ based on build order rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 	float DesiredInscribedRadius = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	//How many tiles should there be in the polygons
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 	int32 DesiredTilesPerSide = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
-	int32 SideTileHeight = 1;
 
 	//Determines how many sides can the polygonal arena have. 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 	int32 MaxSides = 120;
 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
 		int32 MaxTilesPerSideRow = 100;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - 3 Section Arena")
-		int32 RoofTileHeight = 1;
-
 #pragma endregion
 
-#pragma region User Inputs - Floor Configs
+#pragma region User Inputs - Patterns
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		FFloorTransformRules FloorPlacementRules;
+	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
+	//At the moment this is necessary.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+		int FocusGridIndex = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		EMeshOriginPlacement FloorOriginType;
+	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
+	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
+	//Will use index 1 if it fails to find a polygon pattern with polygonal build rules.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+		int FocusPolygonIndex = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		FVector FloorMeshSize;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+		TArray<FArenaSectionBuildRules> PatternList;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		FVector FloorMeshScale;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		TArray<UStaticMesh*> FloorMeshes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		UMaterial* FloorMaterial;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		FVector FloorWarpRange;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Floor")
-		float FloorWarpConcavityStrength;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+		TArray<FArenaMeshGroupConfig> MeshGroups;
 
 #pragma endregion
-
-#pragma region User Inputs - Wall Configs
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		FWallTransformRules WallPlacementRules;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		EMeshOriginPlacement WallOriginType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		bool bBringWallBack = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		FVector WallMeshSize;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		FVector WallMeshScale;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		TArray<UStaticMesh*> WallMeshes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		UMaterial* WallMaterial;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		FVector WallWarpRange;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Wall")
-		float WallWarpConcavityStrength;
-
-#pragma endregion
-
-#pragma region User Inputs - Roof Configs
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		FRoofTransformRules RoofPlacementRules;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		bool bRoofRotationIsQuad = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		bool bBringRoofBack = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		EMeshOriginPlacement RoofOriginType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		FVector RoofMeshSize;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		FVector RoofMeshScale;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		TArray<UStaticMesh*> RoofMeshes;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		UMaterial* RoofMaterial;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		FVector RoofWarpRange;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		float RoofWarpConcavityStrength;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		float StartingPitch;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		int AdjustLeanEachIdxInc;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		float PitchLeanAmount;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | 3 Section Arena - Roof")
-		bool AdjustPlacementToLean;
-
-#pragma endregion
-
-	
 
 private:
-	
 
-	//Floors
-	bool bFloorRotates = false;
-	bool bMoveFloorWhenRotated = false;
-	bool bWarpFloorPlacement = false;
-	bool bWarpFloorScale = false;
+#pragma region Section Exclusives
 
-	TArray<UInstancedStaticMeshComponent*> FloorMeshInstances;
+	FVector OriginOffset = FVector(0);
+	TArray<TArray<UInstancedStaticMeshComponent*>> MeshInstances;
+	TArray<int32> UsedIndices;
 
-	//Walls
-	bool bWarpWallPlacement = false;
-	bool bAddWallRotation = false;
+	//Cached Values
+	FVector PreviousMeshSize = FVector(0.f);
+	int PreviousTilesPerSide = 0;
+	FVector PreviousLastPosition = FVector(0.f);
+	int TotalInstances;
 
-	TArray<UInstancedStaticMeshComponent*> WallMeshInstances;
-
-	//Roofs
-	bool bBuildRoofAsCone = false;
-	bool bBringRoofForward = false;
-	bool bRoofIncrementsForwardEachLevel = false;
-	bool bRoofRotates = false;
-	bool bMoveRoofWhenRotated = false;
-	bool bFlipRoofMeshes = false;
-	bool bWarpRoofPlacement = false;
-
-	TArray<UInstancedStaticMeshComponent*> RoofMeshInstances;
+#pragma endregion
 };
