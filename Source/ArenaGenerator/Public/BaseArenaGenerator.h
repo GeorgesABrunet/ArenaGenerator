@@ -88,28 +88,28 @@ public:
 #pragma region Calculated Values
 
 	//This represents the radius of the vertices of the polygon
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	float InscribedRadius = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	float Apothem = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	float InteriorAngle = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	float ExteriorAngle = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	float SideLength = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	int32 ArenaSides = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	int32 ArenaDimensions = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena | Geometry")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Arena Parameters | Geometry")
 	int32 TilesPerArenaSide = 0;
 
 #pragma endregion
@@ -118,49 +118,49 @@ public:
 // order rules and may not change any behavior depending on selected ruleset.
 #pragma region User Inputs - Build Rules
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	EArenaBuildOrderRules ArenaBuildOrderRules = EArenaBuildOrderRules::PolygonLeadByDimensions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	EOriginPlacementType ArenaPlacementOnActor = EOriginPlacementType::Center;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	int32 ArenaSeed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	FRandomStream ArenaStream;
 
 	//This determines if we should load mesh assets in asynchronously during generation. 
 	//By default we load assets in synchronously. TODO - async loading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	bool bLoadMeshesAsync = false;
 
 	//TODO - map hierarchical instances as well
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	bool bUseHierarchicalInstances = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 	int32 DesiredArenaSides = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 	int32 DesiredArenaFloorDimensions = 0;
 
 	//Will determine the horizontal span of the arena. 
 	//Final arena radius will differ based on build order rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 	float DesiredInscribedRadius = 0;
 
 	//How many tiles should there be in the polygons
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 	int32 DesiredTilesPerSide = 1;
 
 	//Determines how many sides can the polygonal arena have. 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 	int32 MaxSides = 120;
 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
 		int32 MaxTilesPerSideRow = 100;
 
 #pragma endregion
@@ -169,19 +169,19 @@ public:
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
 	//At the moment this is necessary.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
 		int FocusGridIndex = 0;
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
 	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
 	//Will use index 1 if it fails to find a polygon pattern with polygonal build rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
 		int FocusPolygonIndex = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
 		TArray<FArenaSectionBuildRules> PatternList;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
 		TArray<FArenaMeshGroupConfig> MeshGroups;
 
 #pragma endregion
