@@ -52,7 +52,7 @@ ABaseArenaGenerator::ABaseArenaGenerator()
 
 	FocusGridIndex = 0;
 	FocusPolygonIndex = 0;
-
+	
 }
 
 // Called when the game starts or when spawned
@@ -284,21 +284,23 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 		for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
 		{
-			UInstancedStaticMeshComponent* InstancedMesh =
-				NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
+			if (ArenaMesh.Mesh)
+			{
+				UInstancedStaticMeshComponent* InstancedMesh =
+					NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
 
-			InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
-			InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-			InstancedMesh->RegisterComponent();
+				InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
+				InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+				InstancedMesh->RegisterComponent();
 
-			ToInstance.Add(InstancedMesh);
+				ToInstance.Add(InstancedMesh);
+			}
+			
 		}
 
 		//add tarray of instances to mesh instances
-		//TODO reroute array for mesh instance group indices
 		MeshInstances.Add(ToInstance);
 		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);
-		//MeshInstances.EmplaceAt(GroupIdx, ToInstance);
 		ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances at index: %d ", GroupIdx, ReRouteIdx);
 	}
 	else 
