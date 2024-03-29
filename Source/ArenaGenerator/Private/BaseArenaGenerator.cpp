@@ -90,9 +90,12 @@ void ABaseArenaGenerator::WipeArena()
 	ArenaGenLog_Info("Wiping Arena...");
 	
 	//Clear list of used indices
-	if (!UsedIndices.IsEmpty()) {
-		UsedIndices.Empty();
+	if (!UsedGroupIndices.IsEmpty()) {
+		UsedGroupIndices.Empty();
 	}
+
+	//Clear list of reroute indices
+
 	
 	//Iterate through mesh instances and destroy before dereferencing
 	for (auto& Inst : MeshInstances)
@@ -232,6 +235,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 	//Determine arena parameters based off of current origin offsets etc.
 	int GroupIdx = Section.MeshGroupId < MeshGroups.Num() ? Section.MeshGroupId : 0;
+	int ReRouteIdx = 0;
 	FVector MeshSize = MeshGroups[GroupIdx].MeshDimensions;
 	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
 	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X : 1.f;
@@ -270,9 +274,9 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	int YawPosMax = Section.YawPossibilities-1;
 	
 	//Mesh Instancing, get mesh group
-	if (!UsedIndices.Contains(GroupIdx))
+	if (!UsedGroupIndices.Contains(GroupIdx))
 	{
-		UsedIndices.Add(GroupIdx);
+		UsedGroupIndices.Add(GroupIdx);
 
 		TArray<UInstancedStaticMeshComponent*> ToInstance;
 
@@ -290,8 +294,10 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 		//add tarray of instances to mesh instances
 		//TODO reroute array for mesh instance group indices
-		MeshInstances.EmplaceAt(GroupIdx, ToInstance);
-		ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances ", GroupIdx);
+		MeshInstances.Add(ToInstance);
+		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);
+		//MeshInstances.EmplaceAt(GroupIdx, ToInstance);
+		ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances at index: %d ", GroupIdx, ReRouteIdx);
 	}
 	else 
 	{
@@ -367,8 +373,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						//SCALE
 						, MeshScale);
 
-						if (MeshInstances[GroupIdx][MeshIdx]) {
-							MeshInstances[GroupIdx][MeshIdx]->AddInstance(TileTransform);
+						if (MeshInstances[ReRouteIdx][MeshIdx]) {
+							MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
 							TotalInstances++;
 						}
 						else {
@@ -382,6 +388,10 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			//Cache values before scope ends
 			PreviousTilesPerSide = CurrTilesPerSide;
 			PreviousLastPosition = LastCachedPosition;
+
+			if (Section.bUpdatesOriginOffsetHeight) {
+				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount)); // Update OriginOffset by height of 
+			}
 		}
 		break;
 
@@ -446,8 +456,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						);
 
 						//Add instance
-						if (MeshInstances[GroupIdx][MeshIdx]) {
-							MeshInstances[GroupIdx][MeshIdx]->AddInstance(TileTransform);
+						if (MeshInstances[ReRouteIdx][MeshIdx]) {
+							MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
 							TotalInstances++;
 						}
 						else {
@@ -458,7 +468,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			}
 
 			if (Section.bUpdatesOriginOffsetHeight) {
-				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + MeshSize.Z); // Update OriginOffset by height of 
+				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount)); // Update OriginOffset by height of 
 			}
 		}
 		break;

@@ -192,7 +192,7 @@ private:
 
 	FVector OriginOffset = FVector(0);
 	TArray<TArray<UInstancedStaticMeshComponent*>> MeshInstances;
-	TArray<int32> UsedIndices;
+	TArray<int32> UsedGroupIndices;
 
 	//Cached Values
 	FVector PreviousMeshSize = FVector(0.f);
