@@ -65,6 +65,8 @@ void ABaseArenaGenerator::BeginPlay()
 
 void ABaseArenaGenerator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	Super::EndPlay(EndPlayReason);
+
 	WipeArena(); //Need to handle components
 }
 
@@ -447,9 +449,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (PlacementFV * MeshSize.X * MeshScale.X * Row) // Relative X placement
 							+ (PlacementRV * MeshSize.Y * MeshScale.Y * Col) // Relative Y Placement
 							+ RotationOffsetAdjustment //Offset from rotation by OriginType
-							//TODO - Additional offset to origin that used to be included in origin offset
-							//TODO - Additional offset to origin offset from origin type
-							//TODO - warping
+							+ (Section.bWarpPlacement ? PlacementWarping(SectionDimensions / 2, SectionDimensions/2, Col, Row, Section.WarpRange, Section.WarpConcavityStrength, FVector(0, 0, 1)) : FVector(0)) //Warping along placement
 
 							//SCALE
 							, MeshScale
