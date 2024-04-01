@@ -100,7 +100,7 @@ struct ARENAGENERATOR_API FArenaMesh : public FTableRowBase
 	EOriginPlacementType OriginType = EOriginPlacementType::XY_Positive;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -193,6 +193,40 @@ struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Offsets")
 		float OffsetByHeightIncrement = 1.f;
 	
+};
+
+USTRUCT(BlueprintType)
+struct ARENAGENERATOR_API FArenaSectionTargets : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TargetInscribedRadius = 2500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TargetPolygonSides = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TargetTilesPerSide = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TargetGridDimensions = 15;
+
+};
+
+USTRUCT(BlueprintType)
+struct ARENAGENERATOR_API FArenaSection : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EArenaBuildOrderRules SectionBuildOrderRules = EArenaBuildOrderRules::PolygonLeadByRadius;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FArenaSectionTargets Targets;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FArenaSectionBuildRules> BuildRules;
 };
 #pragma endregion
 
