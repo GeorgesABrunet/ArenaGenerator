@@ -160,11 +160,11 @@ public:
 
 	//Determines how many sides can the polygonal arena have. 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	int32 MaxSides = 120;
 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 		int32 MaxTilesPerSideRow = 100;
 
 #pragma endregion
@@ -173,19 +173,19 @@ public:
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
 	//At the moment this is necessary.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		int FocusGridIndex = 0;
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
 	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
 	//Will use index 1 if it fails to find a polygon pattern with polygonal build rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		int FocusPolygonIndex = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		TArray<FArenaMeshGroupConfig> MeshGroups;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		TArray<FArenaSection> SectionList;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")

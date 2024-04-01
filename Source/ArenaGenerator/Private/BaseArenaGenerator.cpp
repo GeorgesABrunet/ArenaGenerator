@@ -76,15 +76,14 @@ void ABaseArenaGenerator::GenerateArena()
 	WipeArena();
 
 
-	ArenaGenLog_Info("Generating Arena...");
+	ArenaGenLog_Info("============ Generating Arena ============");
 
 	//Calculate necessary values for generation based on the parameters provided and build order rules
 	//CalculateArenaParameters(ArenaBuildOrderRules);
 
 	//Build sections from section list
 	BuildSections();
-	//ArenaGenLog_Info("Total Instances: %d", TotalInstances);
-
+	ArenaGenLog_Info("============ Finished ============");
 }
 
 void ABaseArenaGenerator::WipeArena()
@@ -120,103 +119,6 @@ void ABaseArenaGenerator::WipeArena()
 
 }
 
-//
-//void ABaseArenaGenerator::CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules)
-//{
-//	ArenaBuildOrderRules = BuildOrderRules;
-//
-//	//For all cases, we need these.
-//	ArenaSides = FMath::Clamp(DesiredArenaSides, 3, MaxSides);
-//	InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
-//	ExteriorAngle = 360.f / ArenaSides;
-//
-//	//Calculate remaining offsets
-//
-//	//FloorOriginOffset = (((FloorMeshSize * (ArenaDimensions - 1) * -0.5f) * FloorMeshScale) + (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType))
-//	//	- (bMoveFloorWhenRotated ? RotatedMeshOffset(FloorOriginType, FloorMeshSize, 0) : FVector(0))) * FVector(1, 1, 0); //Z should be zero'd for floor.
-//	
-//	//ArenaCenterLoc = -(
-//	//	((ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector((static_cast<float>(TilesPerArenaSide) / (SideLength / WallMeshSize.X)))) -
-//	//	FVector(0, (FloorMeshSize * (ArenaDimensions-1) * 0.5f).Y - (FloorMeshSize * MeshOriginOffsetScalar(FloorOriginType)).Y, 0));
-//
-//	//WallOriginOffset = bBOR_Floor ? FVector(ArenaCenterLoc.X, -ArenaCenterLoc.Y + FloorOriginOffset.Y, FloorOriginOffset.Z + FloorMeshSize.Z) //If inheriting offset from horizontal grid BOR
-//	//	: FVector(-(SideLength / 2), -Apothem, FloorOriginOffset.Z + FloorMeshSize.Z);//If inheriting offset from polygonal BOR
-//
-//	//RoofOriginOffset = bBuildRoofAsCone ? FVector(WallOriginOffset.X, WallOriginOffset.Y, WallMeshSize.Z * SideTileHeight + WallOriginOffset.Z)
-//	//	: FVector(FloorOriginOffset.X, FloorOriginOffset.Y, WallMeshSize.Z * SideTileHeight + WallOriginOffset.Z);
-//
-//
-//	//Determine best starting indices for patterns
-//	bool bGrided = false; 
-//	bool bPolygoned = false;
-//	for (int i = 0; i < PatternList.Num(); i++) {
-//		//ArenaGenLog_Warning("FOUND PATTERNLIST index: %d.", i);
-//		if (bGrided && bPolygoned) { break; }
-//		if (PatternList[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = PatternList[i].MeshGroupId; bGrided = true; ArenaGenLog_Info("Found grid request at index: %d.", i); }
-//		if (PatternList[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = PatternList[i].MeshGroupId; bPolygoned = true; ArenaGenLog_Info("Found polygon request at index: %d.", i);}
-//	}
-//
-//	//CALCULATE SECTION PARAMETERS. Takes index 0 & 1 based on if leading by floor, or by walls.
-//	switch (BuildOrderRules) {
-//		case EArenaBuildOrderRules::GridLeadsByDimensions:
-//		{
-//			//ArenaDimensions determines Inscribed Radius
-//			//Floors
-//			ArenaDimensions = DesiredArenaFloorDimensions;
-//			InscribedRadius = (MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X * (DesiredArenaFloorDimensions - 1) * 0.5);
-//
-//			//Walls
-//			SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);
-//			TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[PatternList[FocusPolygonIndex].MeshGroupId].MeshDimensions.X),
-//				1, //Min
-//				MaxTilesPerSideRow //Max
-//			);
-//			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
-//
-//		}break;
-//		case EArenaBuildOrderRules::GridLeadsByRadius:
-//		{
-//			//InscribedRadius determines arenadims w mesh size
-//			//Floors
-//			ArenaDimensions = (DesiredInscribedRadius / MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X) > 2 ? FMath::Floor(DesiredInscribedRadius / MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X) : 2;
-//			InscribedRadius = (MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X * (ArenaDimensions) * 0.5);
-//			//Walls
-//			SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);
-//			TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[PatternList[FocusPolygonIndex].MeshGroupId].MeshDimensions.X), //TODO - better input method for indexing here
-//				1, //Min
-//				MaxTilesPerSideRow //Max
-//			);
-//			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
-//
-//		}break;
-//		case EArenaBuildOrderRules::PolygonLeadByDimensions:
-//		{
-//			//find inscribed radius from mesh size, desired tps, arena sides.
-//
-//			TilesPerArenaSide = DesiredTilesPerSide;
-//			SideLength = MeshGroups[PatternList[FocusPolygonIndex].MeshGroupId].MeshDimensions.X * TilesPerArenaSide;
-//
-//			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of adjacent angle 
-//			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
-//
-//			ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X);
-//		}break;
-//		case EArenaBuildOrderRules::PolygonLeadByRadius:
-//		{
-//			//Inscribedradius determines final amount of tiles per side 
-//
-//			TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(DesiredInscribedRadius, InteriorAngle / 2.f)) / MeshGroups[PatternList[FocusPolygonIndex].MeshGroupId].MeshDimensions.X);
-//			SideLength = MeshGroups[PatternList[FocusPolygonIndex].MeshGroupId].MeshDimensions.X * TilesPerArenaSide;
-//
-//			InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite/2 divided by sine of adjacent angle
-//			Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
-//
-//			ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[PatternList[FocusGridIndex].MeshGroupId].MeshDimensions.X);
-//		}break;
-//	}
-//
-//}
-
 void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 {
 	//For all cases, we need these.
@@ -230,8 +132,8 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 	bool bPolygoned = false;
 	for (int i = 0; i < Section.BuildRules.Num(); i++) {
 		if (bGrided && bPolygoned) { break; }
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].MeshGroupId; bGrided = true; ArenaGenLog_Info("Found grid request at index: %d.", i); }
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; ArenaGenLog_Info("Found polygon request at index: %d.", i); }
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].MeshGroupId; bGrided = true; ArenaGenLog_Info("Found grid request %d at section index: %d.", FocusGridIndex, i); }
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; ArenaGenLog_Info("Found polygon request %d at section index: %d.", FocusPolygonIndex,i); }
 	}
 
 	//CALCULATE SECTION PARAMETERS. Takes index 0 & 1 based on if leading by floor, or by walls.
@@ -241,11 +143,11 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		//ArenaDimensions determines Inscribed Radius
 		//Floors
 		ArenaDimensions = Section.Targets.TargetGridDimensions;
-		InscribedRadius = (MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X * (Section.Targets.TargetGridDimensions - 1) * 0.5);
+		InscribedRadius = (MeshGroups[FocusGridIndex].MeshDimensions.X * (Section.Targets.TargetGridDimensions - 1) * 0.5);
 
 		//Walls
 		SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);
-		TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[Section.BuildRules[FocusPolygonIndex].MeshGroupId].MeshDimensions.X),
+		TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[FocusPolygonIndex].MeshDimensions.X),
 			1, //Min
 			MaxTilesPerSideRow //Max
 		);
@@ -255,15 +157,20 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 	case EArenaBuildOrderRules::GridLeadsByRadius:
 	{
 		//InscribedRadius determines arenadims w mesh size
+		
 		//Floors
-		ArenaDimensions = (Section.Targets.TargetInscribedRadius / MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X) > 2 ? FMath::Floor(Section.Targets.TargetInscribedRadius / MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X) : 2;
-		InscribedRadius = (MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X * (ArenaDimensions) * 0.5);
+		ArenaDimensions = (Section.Targets.TargetInscribedRadius / MeshGroups[FocusGridIndex].MeshDimensions.X) > 2 ? FMath::Floor(Section.Targets.TargetInscribedRadius / MeshGroups[FocusGridIndex].MeshDimensions.X) : 2;
+		// was Section.BuildRules[FocusGridIndex].MeshGroupId
+		InscribedRadius = (MeshGroups[FocusGridIndex].MeshDimensions.X * (ArenaDimensions) * 0.5);
+		//was Section.BuildRules[FocusGridIndex].MeshGroupId
+		
 		//Walls
-		SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);
-		TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[Section.BuildRules[FocusPolygonIndex].MeshGroupId].MeshDimensions.X),
+		SideLength = 2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f);	
+		TilesPerArenaSide = FMath::Clamp(FMath::Floor(SideLength / MeshGroups[FocusPolygonIndex].MeshDimensions.X),
 			1, //Min
 			MaxTilesPerSideRow //Max
 		);
+	
 		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 	}break;
@@ -272,24 +179,24 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		//find inscribed radius from mesh size, desired tps, arena sides.
 
 		TilesPerArenaSide = Section.Targets.TargetTilesPerSide;
-		SideLength = MeshGroups[Section.BuildRules[FocusPolygonIndex].MeshGroupId].MeshDimensions.X * TilesPerArenaSide;
+		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
 		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of adjacent angle 
 		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
-		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X);
+		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X); //was Section.BuildRules[FocusGridIndex].MeshGroupId
 	}break;
 	case EArenaBuildOrderRules::PolygonLeadByRadius:
 	{
 		//Inscribedradius determines final amount of tiles per side 
 
-		TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(Section.Targets.TargetInscribedRadius, InteriorAngle / 2.f)) / MeshGroups[Section.BuildRules[FocusPolygonIndex].MeshGroupId].MeshDimensions.X);
-		SideLength = MeshGroups[Section.BuildRules[FocusPolygonIndex].MeshGroupId].MeshDimensions.X * TilesPerArenaSide;
+		TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(Section.Targets.TargetInscribedRadius, InteriorAngle / 2.f)) / MeshGroups[FocusPolygonIndex].MeshDimensions.X); //was Section.BuildRules[FocusPolygonIndex].MeshGroupId
+		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
 		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite/2 divided by sine of adjacent angle
 		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
-		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[Section.BuildRules[FocusGridIndex].MeshGroupId].MeshDimensions.X);
+		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X);
 	}break;
 	}
 
@@ -306,26 +213,24 @@ void ABaseArenaGenerator::BuildSections()
 		ArenaGenLog_Info("Building out %d Sections", SectionList.Num());
 
 		//for every FArenaSection...
-		for (auto& Section : SectionList) 
+		for (int32 i = 0; i < SectionList.Num(); i++)
 		{
 			//Calculate section parameters
-			CalculateSectionParameters(Section);
+			CalculateSectionParameters(SectionList[i]);
+			ArenaGenLog_Info("Building out %d patterns", SectionList[i].BuildRules.Num());
 
-			ArenaGenLog_Info("Building out %d patterns", Section.BuildRules.Num());
-
-			//Iterate over patterns in section
-			for (auto& pattern : Section.BuildRules)
+			for (int32 j = 0; j < SectionList[i].BuildRules.Num(); j++)
 			{
-				BuildSection(pattern);
+				ArenaGenLog_Info("Building SECTION %d : PATTERN %d ", i, j);
+				BuildSection(SectionList[i].BuildRules[j]);
 			}
+
 		}
 	}
 }
 
 void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 {
-	ArenaGenLog_Info("Building Section...");
-
 	//Determine arena parameters based off of current origin offsets etc.
 	int GroupIdx = Section.MeshGroupId < MeshGroups.Num() ? Section.MeshGroupId : 0;
 	int ReRouteIdx = 0;
@@ -362,7 +267,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		}
 		break;
 	}
-
+	//ArenaGenLog_Info("Here 1");
+	
 	//Update rotation parameters
 	float RotationIncr = 360.f / Section.YawPossibilities;
 	int YawPosMax = Section.YawPossibilities-1;
@@ -370,12 +276,14 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	//Mesh Instancing, get mesh group
 	if (!UsedGroupIndices.Contains(GroupIdx))
 	{
+		//ArenaGenLog_Info("Here 2");
 		UsedGroupIndices.Add(GroupIdx);
 
 		TArray<UInstancedStaticMeshComponent*> ToInstance;
 
 		for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
 		{
+			//ArenaGenLog_Info("Here 3");
 			if (ArenaMesh.Mesh)
 			{
 				UInstancedStaticMeshComponent* InstancedMesh =
@@ -384,12 +292,13 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 				InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
 				InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 				InstancedMesh->RegisterComponent();
-
+				//ArenaGenLog_Info("Here 4");
 				ToInstance.Add(InstancedMesh);
 			}
 			
 		}
 
+		//ArenaGenLog_Info("Here 5");
 		//add tarray of instances to mesh instances
 		MeshInstances.Add(ToInstance);
 		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);		//Using reroute index allows us to add mesh groups out of order to the mesh instances
