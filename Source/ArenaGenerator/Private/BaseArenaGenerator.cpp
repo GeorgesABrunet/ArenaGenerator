@@ -26,7 +26,7 @@
 #include "BaseArenaGenerator.h"
 #include "Math/RandomStream.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include <Kismet/KismetMathLibrary.h>
+#include "Kismet/KismetMathLibrary.h"
 #include "ArenaGeneratorLog.h"
 
 // Sets default values
@@ -69,11 +69,10 @@ void ABaseArenaGenerator::GenerateArena()
 
 	ArenaGenLog_Info("============ Generating Arena ============");
 
-	//Calculate necessary values for generation based on the parameters provided and build order rules
-	//CalculateArenaParameters(ArenaBuildOrderRules);
-
 	//Build sections from section list
 	BuildSections();
+
+	//Log number of mesh Instances in arena
 	ArenaGenLog_Info("============ Finished, # of Instances: %d ============", TotalInstances);
 }
 
@@ -112,6 +111,11 @@ void ABaseArenaGenerator::WipeArena()
 
 void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 {
+	if (MeshGroups.IsEmpty()) { 
+		ArenaGenLog_Error("Cannot calculate section parameters with empty Mesh Groups!");
+		return;
+	}
+
 	//For all cases, we need these.
 	OriginOffset = FVector(0);
 	ArenaSides = FMath::Clamp(Section.Targets.TargetPolygonSides, 3, MaxSides);
@@ -195,6 +199,12 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 
 void ABaseArenaGenerator::BuildSections()
 {
+	if (MeshGroups.IsEmpty()) {
+		ArenaGenLog_Error("Cannot build sections with empty Mesh Groups!");
+		return;
+	}
+
+
 	if (SectionList.IsEmpty())
 	{
 		ArenaGenLog_Warning("SectionList is empty! Arena generation is null.");
@@ -226,16 +236,21 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		ArenaGenLog_Error("Cannot build section pattern because associated mesh group is invalid OR mesh groups are empty.");
 		return; 
 	}
-
-	//Determine arena parameters based off of current origin offsets etc.
+	
+	//Clamp MeshGroup index so that we do not search outside of its bounds
 	int GroupIdx = (Section.MeshGroupId < MeshGroups.Num()) ? Section.MeshGroupId : 0;
 	int ReRouteIdx = 0;
+
+	//Determine arena parameters based off of current origin offsets etc.
+	
 	FVector MeshSize = MeshGroups[GroupIdx].MeshDimensions;
+	if (PreviousMeshSize == FVector(0)) { PreviousMeshSize = MeshSize; } 
 	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
 	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X : 1.f;
 	float HeightAdjustment = MeshSize.Z * Section.InitOffsetByHeightScalar;
 
-	int CurrTilesPerSide = MeshScalar == 1.f ? TilesPerArenaSide : //Tiles per arena Side
+	//TODO - adjust curr tiles per side to init and per-iteration width offsets
+	int CurrTilesPerSide = MeshScalar == 1.f ? TilesPerArenaSide : //Tiles per Side of the pattern
 		FMath::Clamp(FMath::Floor((2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f)) / MeshSize.X), 1, MaxTilesPerSideRow);
 
 	if (PreviousTilesPerSide == 0) { PreviousTilesPerSide = TilesPerArenaSide; } // Prev Tiles cannot be zero
@@ -262,6 +277,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			}
 		}
 		break;
+		//TODO - Other cases
 	}
 	
 	//Update rotation parameters
@@ -336,13 +352,11 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 						//Cache some random value between 0 & 3 to use for rotating roof pieces
 						int RandomVal{ 0 };
-						FVector RotationOffsetAdjustment;
+						FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);;
 
 						switch (Section.RotationRule) {
-						case EPlacementOrientationRule::None:
-							break;
 						case EPlacementOrientationRule::RotateByYP:
-							RandomVal = ArenaStream.RandRange(0, Section.YawPossibilities);
+							RandomVal = ArenaStream.RandRange(0, YawPosMax);
 							RotationOffsetAdjustment =
 								OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
 							break;
@@ -399,7 +413,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			int Midpoint = FMath::Floor(ArenaDimensions / 2);
 
 			int SectionDimensions = (MeshSize.X == PreviousMeshSize.X) ? ArenaDimensions :
-				FMath::Floor((2.f * CalculateOpposite(InscribedRadius, InteriorAngle / 2.f)) / MeshSize.X);
+				FMath::Floor((2.f * SideLength) / MeshSize.X);
 
 			FVector PlacementFV = FVector(1.f, 0.f, 0.f); //ForwardVectorFromYaw(Section.DefaultRotation.Yaw);
 			FVector PlacementRV = FVector(0.f, 1.f, 0.f);//FRotationMatrix(FRotator(0, Section.DefaultRotation.Yaw, 0)).GetScaledAxis(EAxis::Y);
@@ -562,55 +576,54 @@ FVector ABaseArenaGenerator::RotatedMeshOffset(EOriginPlacementType OriginType, 
 
 FVector ABaseArenaGenerator::OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EOriginPlacementType OriginType, const FVector& MeshSize, int RotationIndex)
 {
-	FVector Xspan;
-	FVector Yspan;
+	FVector Span;
 
 	switch (OriginType) {
 	case(EOriginPlacementType::XY_Positive):
 		if (RotationIndex == 1) {
-			Xspan = FV * MeshSize.X;
+			Span = FV * MeshSize.X;
 		}
 		else if (RotationIndex == 2) {
-			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+			Span = FV * MeshSize.X + RV * MeshSize.Y;
 		}
 		else if (RotationIndex == 3) {
-			Yspan = RV * MeshSize.Y;
+			Span = RV * MeshSize.Y;
 		}
 		break;
 
 	case(EOriginPlacementType::XY_Negative):
 		if (RotationIndex == 0) {
-			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+			Span = FV * MeshSize.X + RV * MeshSize.Y;
 		}
 		else if (RotationIndex == 1) {
-			Yspan = RV * MeshSize.Y;
+			Span = RV * MeshSize.Y;
 		}
 		else if (RotationIndex == 3) {
-			Xspan = FV * MeshSize.X;
+			Span = FV * MeshSize.X;
 		}
 		break;
 
 	case(EOriginPlacementType::X_Positive_Y_Negative):
 		if (RotationIndex == 0) {
-			Yspan = RV * MeshSize.Y;
+			Span = RV * MeshSize.Y;
 		}
 		else if (RotationIndex == 2) {
-			Xspan = FV * MeshSize.X;
+			Span = FV * MeshSize.X;
 		}
 		else if (RotationIndex == 3) {
-			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+			Span = FV * MeshSize.X + RV * MeshSize.Y;
 		}
 		break;
 
 	case(EOriginPlacementType::X_Negative_Y_Positive):
 		if (RotationIndex == 0) {
-			Xspan = FV * MeshSize.X;
+			Span = FV * MeshSize.X;
 		}
 		else if (RotationIndex == 1) {
-			Xspan = FV * MeshSize.X; Yspan = RV * MeshSize.Y;
+			Span = FV * MeshSize.X + RV * MeshSize.Y;
 		}
 		else if (RotationIndex == 2) {
-			Yspan = RV * MeshSize.Y;
+			Span = RV * MeshSize.Y;
 		}
 		break;
 
@@ -618,7 +631,7 @@ FVector ABaseArenaGenerator::OffsetMeshAlongDirections(const FVector& FV, const 
 		return FVector(0);
 		break;
 	}
-	return Xspan + Yspan;
+	return Span;
 }
 
 

@@ -145,21 +145,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	bool bUseHierarchicalInstances = false;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
-	//int32 DesiredArenaSides = 0;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
-	//int32 DesiredArenaFloorDimensions = 0;
-
-	//Will determine the horizontal span of the arena. 
-	//Final arena radius will differ based on build order rules.
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
-	//float DesiredInscribedRadius = 0;
-
-	//How many tiles should there be in the polygons
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets - Dimensions")
-	//int32 DesiredTilesPerSide = 1;
-
 	//Determines how many sides can the polygonal arena have. 
 	//WARNING: Consider Tiles per side and build rules! 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
@@ -167,22 +152,23 @@ public:
 
 	//WARNING: Consider Tiles per side and build rules! 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
-		int32 MaxTilesPerSideRow = 100;
+	int32 MaxTilesPerSideRow = 100;
 
 #pragma endregion
 
 #pragma region User Inputs - Patterns
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
-	//At the moment this is necessary.
+	//Using grid based build order rules requires the first pattern with section-type of horizontal grid to be used as reference
+	//Will use index 0 if it fails to find a grid-type pattern with horizontal grid build rules.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		int FocusGridIndex = 0;
 
 	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
 	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
-	//Will use index 1 if it fails to find a polygon pattern with polygonal build rules.
+	//Will use index 0 if it fails to find a polygon-type pattern with polygonal build rules.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
-		int FocusPolygonIndex = 1;
+		int FocusPolygonIndex = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
 		TArray<FArenaMeshGroupConfig> MeshGroups;
