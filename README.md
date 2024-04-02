@@ -9,6 +9,15 @@ or you can provide a set of patterns to build out sequentially.
 Originally made for the title Shifting Mausoleum, the functionality was aimed to support semi-procedural arena generation for worlds in three sections, with unique behaviors for each section.
 A little more thought showed this could be built upon to support a fully modular approach to arena building.
 
+## Features
+
+- Building grids and regular polygons vertically as sections
+- Built-in generation rules to modulate building behavior for each section
+- Mesh group logic to optimize instantiation
+- Support for defining mesh origins in relation to generation (accounting for the origins that are not in a specific corner or center)
+- Data table support for generation parametrization
+- Ability to index sections to reuse in generation
+
 ## How to use it
 
 Details on how it works internally can be found in the Wiki. 
@@ -28,8 +37,12 @@ The only condition is to add the copyright notice and a copy of the license with
 
 ## To Do List (Not in order)
 
-- Base Cases Arena Generator
-- Systemize overlapping behaviors in base cases for section pattern definition
-- Pattern-based Arena Generator
-- Support for reading patterns from data tables
-- Ability to convert results to static mesh actors in level
+- Example project
+- Tutorial videos
+- Ability to bake out arenas as static meshes in world
+- Editor tools to ease building arenas
+- Mesh patterns and custom pattern support
+- Rotational offsets for RotationYP rule for polygonal structures
+- Arena placement in relation to actor
+- Asynchronous loading support
+- Hierarchical instancing
