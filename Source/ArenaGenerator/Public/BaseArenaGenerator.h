@@ -83,7 +83,9 @@ private:
 	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the origin sits in the center of the mesh.
 	FVector MeshOriginOffsetScalar(EOriginPlacementType OriginType);
 
-	FVector PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection);
+	FVector PlacementWarpingConcavity(int ColMidpoint, int RowMidpoint, int Col, int Row, float ConcavityStrength, FVector WarpDirection);
+
+	FVector PlacementWarpingDirectional(FVector OffsetRanges, const FVector& DirFV, const FVector& DirRV);
 
 
 public:

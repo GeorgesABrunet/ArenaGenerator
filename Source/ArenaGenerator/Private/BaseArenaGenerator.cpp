@@ -35,15 +35,6 @@ ABaseArenaGenerator::ABaseArenaGenerator()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false; //Does not need to tick
 
-	//WipeArena();
-
-	//ArenaBuildOrderRules = EArenaBuildOrderRules::PolygonLeadByRadius;
-	//ArenaPlacementOnActor = EOriginPlacementType::Center;
-	//DesiredArenaSides = 8;
-	//DesiredArenaFloorDimensions = 10;
-	//DesiredInscribedRadius = 2000;
-	//DesiredTilesPerSide = 5;
-
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	
 	ArenaSeed = 1010101;
@@ -83,7 +74,7 @@ void ABaseArenaGenerator::GenerateArena()
 
 	//Build sections from section list
 	BuildSections();
-	ArenaGenLog_Info("============ Finished ============");
+	ArenaGenLog_Info("============ Finished, # of Instances: %d ============", TotalInstances);
 }
 
 void ABaseArenaGenerator::WipeArena()
@@ -132,8 +123,8 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 	bool bPolygoned = false;
 	for (int i = 0; i < Section.BuildRules.Num(); i++) {
 		if (bGrided && bPolygoned) { break; }
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].MeshGroupId; bGrided = true; ArenaGenLog_Info("Found grid request %d at section index: %d.", FocusGridIndex, i); }
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; ArenaGenLog_Info("Found polygon request %d at section index: %d.", FocusPolygonIndex,i); }
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].MeshGroupId; bGrided = true; }// ArenaGenLog_Info("Found grid request %d at section index: %d.", FocusGridIndex, i);
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; }// ArenaGenLog_Info("Found polygon request %d at section index: %d.", FocusPolygonIndex, i);
 	}
 
 	//CALCULATE SECTION PARAMETERS. Takes index 0 & 1 based on if leading by floor, or by walls.
@@ -216,9 +207,9 @@ void ABaseArenaGenerator::BuildSections()
 		for (int32 i = 0; i < SectionList.Num(); i++)
 		{
 			//Calculate section parameters
-			CalculateSectionParameters(SectionList[i]);
 			ArenaGenLog_Info("Building out %d patterns", SectionList[i].BuildRules.Num());
-
+			CalculateSectionParameters(SectionList[i]);
+			
 			for (int32 j = 0; j < SectionList[i].BuildRules.Num(); j++)
 			{
 				ArenaGenLog_Info("Building SECTION %d : PATTERN %d ", i, j);
@@ -231,8 +222,13 @@ void ABaseArenaGenerator::BuildSections()
 
 void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 {
+	if (MeshGroups.IsEmpty()) {
+		ArenaGenLog_Error("Cannot build section pattern because associated mesh group is invalid OR mesh groups are empty.");
+		return; 
+	}
+
 	//Determine arena parameters based off of current origin offsets etc.
-	int GroupIdx = Section.MeshGroupId < MeshGroups.Num() ? Section.MeshGroupId : 0;
+	int GroupIdx = (Section.MeshGroupId < MeshGroups.Num()) ? Section.MeshGroupId : 0;
 	int ReRouteIdx = 0;
 	FVector MeshSize = MeshGroups[GroupIdx].MeshDimensions;
 	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
@@ -262,12 +258,11 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 					);
 
 				OriginOffset = FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
-				// FVector(-(SideLength/2), -Apothem, OriginOffset.Z);
+				//FVector(-(SideLength/2), -Apothem, OriginOffset.Z);
 			}
 		}
 		break;
 	}
-	//ArenaGenLog_Info("Here 1");
 	
 	//Update rotation parameters
 	float RotationIncr = 360.f / Section.YawPossibilities;
@@ -276,14 +271,12 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	//Mesh Instancing, get mesh group
 	if (!UsedGroupIndices.Contains(GroupIdx))
 	{
-		//ArenaGenLog_Info("Here 2");
 		UsedGroupIndices.Add(GroupIdx);
 
 		TArray<UInstancedStaticMeshComponent*> ToInstance;
 
 		for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
 		{
-			//ArenaGenLog_Info("Here 3");
 			if (ArenaMesh.Mesh)
 			{
 				UInstancedStaticMeshComponent* InstancedMesh =
@@ -292,13 +285,12 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 				InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
 				InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 				InstancedMesh->RegisterComponent();
-				//ArenaGenLog_Info("Here 4");
+			
 				ToInstance.Add(InstancedMesh);
 			}
 			
 		}
 
-		//ArenaGenLog_Info("Here 5");
 		//add tarray of instances to mesh instances
 		MeshInstances.Add(ToInstance);
 		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);		//Using reroute index allows us to add mesh groups out of order to the mesh instances
@@ -373,7 +365,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (SideAngleRV * MeshSize.Y * Section.InitOffsetByWidthScalar) // Initial width offset
 							+ (SideAngleRV * MeshSize.Y * Section.OffsetByWidthIncrement * HeightIdx) // Offset by width each height increment
 							+ RotationOffsetAdjustment // Adjust by offset caused by rotation and mesh origin type
-							//TODO - Warping
+							+ PlacementWarpingConcavity(CurrTilesPerSide / 2, CurrTilesPerSide / 2, LenIdx, HeightIdx, Section.WarpConcavityStrength, SideAngleRV) // Concavity
+							+ (Section.bWarpPlacement ? PlacementWarpingDirectional(Section.WarpRange, SideAngleFV, SideAngleRV) : FVector(0)) //Warping along placement
 							
 						//SCALE
 						, MeshScale);
@@ -452,7 +445,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (PlacementFV * MeshSize.X * MeshScale.X * Row) // Relative X placement
 							+ (PlacementRV * MeshSize.Y * MeshScale.Y * Col) // Relative Y Placement
 							+ RotationOffsetAdjustment //Offset from rotation by OriginType
-							+ (Section.bWarpPlacement ? PlacementWarping(SectionDimensions / 2, SectionDimensions/2, Col, Row, Section.WarpRange, Section.WarpConcavityStrength, FVector(0, 0, 1)) : FVector(0)) //Warping along placement
+							+ (Section.bWarpPlacement ? PlacementWarpingDirectional(Section.WarpRange, FVector(1, 0, 0), FVector(0, 1, 0)) : FVector(0)) //Warping along placement
+							+ PlacementWarpingConcavity(SectionDimensions / 2, SectionDimensions / 2, Col, Row,  Section.WarpConcavityStrength, FVector(0, 0, 1))
 
 							//SCALE
 							, MeshScale
@@ -651,17 +645,27 @@ FVector ABaseArenaGenerator::MeshOriginOffsetScalar(EOriginPlacementType OriginT
 	return FVector(0);
 }
 
-FVector ABaseArenaGenerator::PlacementWarping(int ColMidpoint, int RowMidpoint, int Col, int Row, FVector OffsetRanges, float ConcavityStrength, FVector WarpDirection)
+FVector ABaseArenaGenerator::PlacementWarpingConcavity(int ColMidpoint, int RowMidpoint, int Col, int Row, float ConcavityStrength, FVector WarpDirection)
 {
 	float ConcaveWarp = ConcavityStrength *
 		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - ColMidpoint)) / RowMidpoint), 0.f, 1.f)) *
 		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
 
-	return  FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X), 
+	return  (WarpDirection * ConcaveWarp); 
+	/*FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X),
 		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
 		ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z)) 
-		+ (WarpDirection * ConcaveWarp);
+		+ (WarpDirection * ConcaveWarp);*/
 }
+
+FVector ABaseArenaGenerator::PlacementWarpingDirectional(FVector OffsetRanges, const FVector& DirFV, const FVector& DirRV)
+{
+
+	return (ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X) * DirFV)
+		+ (ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y) * DirRV)
+		+ FVector(0,0, ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z));// FVector();
+}
+
 
 
 
