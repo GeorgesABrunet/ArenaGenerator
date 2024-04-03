@@ -127,65 +127,58 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
 	//EArenaBuildOrderRules ArenaBuildOrderRules = EArenaBuildOrderRules::PolygonLeadByDimensions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	EOriginPlacementType ArenaPlacementOnActor = EOriginPlacementType::Center;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	int32 ArenaSeed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	FRandomStream ArenaStream;
 
 	//This determines if we should load mesh assets in asynchronously during generation. 
 	//By default we load assets in synchronously. TODO - async loading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	bool bLoadMeshesAsync = false;
 
 	//TODO - map hierarchical instances as well
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	bool bUseHierarchicalInstances = false;
 
 	//Determines how many sides can the polygonal arena have. 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	int32 MaxSides = 120;
 
 	//WARNING: Consider Tiles per side and build rules! 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Build Rule Targets")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Generation Rules")
 	int32 MaxTilesPerSideRow = 100;
 
 #pragma endregion
 
 #pragma region User Inputs - Patterns
 
-	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
-	//Using grid based build order rules requires the first pattern with section-type of horizontal grid to be used as reference
-	//Will use index 0 if it fails to find a grid-type pattern with horizontal grid build rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
-		int FocusGridIndex = 0;
-
-	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
-	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
-	//Will use index 0 if it fails to find a polygon-type pattern with polygonal build rules.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
-		int FocusPolygonIndex = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")
 		TArray<FArenaMeshGroupConfig> MeshGroups;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")// | Patterns")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")
 		TArray<FArenaSection> SectionList;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters | Patterns")
-	//	TArray<FArenaSectionBuildRules> PatternList;
-
-
 
 #pragma endregion
 
 private:
 
 #pragma region Section Exclusives
+
+	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
+	//Using grid based build order rules requires the first pattern with section-type of horizontal grid to be used as reference
+	//Will use index 0 if it fails to find a grid-type pattern with horizontal grid build rules.
+	int FocusGridIndex = 0;
+
+	//Based on build order rules, arena parameters are calculated with dependencies from user-input parameters.
+	//Using polygon based build order rules requires the first patterns with polygon build rules to be used as reference.
+	//Will use index 0 if it fails to find a polygon-type pattern with polygonal build rules.
+	int FocusPolygonIndex = 0;
 
 	FVector OriginOffset = FVector(0);
 	TArray<TArray<UInstancedStaticMeshComponent*>> MeshInstances;

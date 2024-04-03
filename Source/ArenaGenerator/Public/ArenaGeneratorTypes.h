@@ -61,7 +61,7 @@ enum class EOriginPlacementType : uint8
 	X_Positive_Y_Negative,
 	X_Negative_Y_Positive,
 	Center,
-	Custom,
+	//Custom, // TODO - add behavior for custom origins
 	//...
 };
 
@@ -134,7 +134,7 @@ struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
 
 	//Which Mesh Group index should be referred to for mesh picking patterns
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
-		int MeshGroupId = 1;
+		int MeshGroupId = 0;
 
 	//Whether or not this section should update the origin offset as it iterates the SectionAmount
 	//TODO - not yet implemented
@@ -165,7 +165,7 @@ struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
 	// This determines the per-axis range of warping.
 	// For polygons this will respectively affect warping along forward =x, right=y, up=z vectors.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Warping")
-		FVector WarpRange = FVector(0.f);
+		FVector WarpRange = FVector(0.f, 0.f, 1.f);
 
 	// This determines how concave should the section pieces be.  
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Warping")

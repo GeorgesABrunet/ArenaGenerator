@@ -74,6 +74,7 @@ void ABaseArenaGenerator::GenerateArena()
 
 	//Log number of mesh Instances in arena
 	ArenaGenLog_Info("============ Finished, # of Instances: %d ============", TotalInstances);
+
 }
 
 void ABaseArenaGenerator::WipeArena()
@@ -238,8 +239,9 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	}
 	
 	//Clamp MeshGroup index so that we do not search outside of its bounds
-	int GroupIdx = (Section.MeshGroupId < MeshGroups.Num()) ? Section.MeshGroupId : 0;
+	int GroupIdx = (Section.MeshGroupId < MeshGroups.Num() && Section.MeshGroupId > 0) ? Section.MeshGroupId : 0;
 	int ReRouteIdx = 0;
+	if (Section.SectionAmount < 1) { Section.SectionAmount = 1; } //Make sure section amount is not negative or zero
 
 	//Determine arena parameters based off of current origin offsets etc.
 	
@@ -248,6 +250,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
 	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X : 1.f;
 	float HeightAdjustment = MeshSize.Z * Section.InitOffsetByHeightScalar;
+	bool bConcavity = Section.bWarpPlacement && Section.WarpConcavityStrength != 0.f;
 
 	//TODO - adjust curr tiles per side to init and per-iteration width offsets
 	int CurrTilesPerSide = MeshScalar == 1.f ? TilesPerArenaSide : //Tiles per Side of the pattern
@@ -379,7 +382,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (SideAngleRV * MeshSize.Y * Section.InitOffsetByWidthScalar) // Initial width offset
 							+ (SideAngleRV * MeshSize.Y * Section.OffsetByWidthIncrement * HeightIdx) // Offset by width each height increment
 							+ RotationOffsetAdjustment // Adjust by offset caused by rotation and mesh origin type
-							+ PlacementWarpingConcavity(CurrTilesPerSide / 2, CurrTilesPerSide / 2, LenIdx, HeightIdx, Section.WarpConcavityStrength, SideAngleRV) // Concavity
+							+ (bConcavity ? PlacementWarpingConcavity(CurrTilesPerSide / 2, CurrTilesPerSide / 2, LenIdx, HeightIdx, Section.WarpConcavityStrength, SideAngleRV) : FVector(0.f)) // Concavity
 							+ (Section.bWarpPlacement ? PlacementWarpingDirectional(Section.WarpRange, SideAngleFV, SideAngleRV) : FVector(0)) //Warping along placement
 							
 						//SCALE
@@ -402,7 +405,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			PreviousLastPosition = LastCachedPosition;
 
 			if (Section.bUpdatesOriginOffsetHeight) {
-				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount)); // Update OriginOffset by height of 
+				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount * Section.OffsetByHeightIncrement)); // Update OriginOffset by height of mesh and scalar of height increment
 			}
 		}
 		break;
@@ -460,7 +463,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (PlacementRV * MeshSize.Y * MeshScale.Y * Col) // Relative Y Placement
 							+ RotationOffsetAdjustment //Offset from rotation by OriginType
 							+ (Section.bWarpPlacement ? PlacementWarpingDirectional(Section.WarpRange, FVector(1, 0, 0), FVector(0, 1, 0)) : FVector(0)) //Warping along placement
-							+ PlacementWarpingConcavity(SectionDimensions / 2, SectionDimensions / 2, Col, Row,  Section.WarpConcavityStrength, FVector(0, 0, 1))
+							+ (bConcavity ? PlacementWarpingConcavity(CurrTilesPerSide / 2, CurrTilesPerSide / 2, Row, Col, Section.WarpConcavityStrength, FVector(0.f, 0.f, 1.f)) : FVector(0.f))
 
 							//SCALE
 							, MeshScale
@@ -479,7 +482,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			}
 
 			if (Section.bUpdatesOriginOffsetHeight) {
-				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount)); // Update OriginOffset by height of 
+				OriginOffset = FVector(OriginOffset.X, OriginOffset.Y, OriginOffset.Z + (MeshSize.Z * Section.SectionAmount * Section.OffsetByHeightIncrement)); // Update OriginOffset by height of mesh times scalar of height increment
 			}
 		}
 		break;
