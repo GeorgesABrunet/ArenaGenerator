@@ -38,7 +38,6 @@ The only condition is to add the copyright notice and a copy of the license with
 
 - Example project
 - Tutorial videos
-- Ability to bake out arenas as static meshes in world
 - Editor tools to ease building arenas
 - Mesh patterns and custom pattern support
 - Rotational offsets for RotationYP rule for polygonal structures
