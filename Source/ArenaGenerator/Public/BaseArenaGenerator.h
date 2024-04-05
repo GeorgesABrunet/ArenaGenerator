@@ -41,6 +41,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	// Need to override to delete additional memory allocated
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:	
@@ -52,6 +53,10 @@ public:
 	//Deletes all instances associated with actor. Does not clear parameters.
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Arena")
 	virtual void WipeArena();
+	
+	//Place arena generation in world as Static Mesh Actors
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Generation")
+	void ConvertToStaticMeshActors();
 
 	//Specific function for building out the sections in section list
 	UFUNCTION(BlueprintCallable, Category = "Arena")
@@ -60,12 +65,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	virtual void BuildSection(FArenaSectionBuildRules& Section);
 
+	
 
 private:
-
-
-	//Calculates the definitive parameters of arena generation.
-	//virtual void CalculateArenaParameters(EArenaBuildOrderRules BuildOrderRules);
 
 	//Calculates the definitive parameters of the section to be generated.
 	virtual void CalculateSectionParameters(FArenaSection& Section);
@@ -83,8 +85,10 @@ private:
 	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the origin sits in the center of the mesh.
 	FVector MeshOriginOffsetScalar(EOriginPlacementType OriginType);
 
+	//Adds concavity to a 2-dimensional grid of columns and rows in a direction amplified by concavity strength.
 	FVector PlacementWarpingConcavity(int ColMidpoint, int RowMidpoint, int Col, int Row, float ConcavityStrength, FVector WarpDirection);
 
+	//Randomly offsets by negative and positive values of the OffsetRanges along directions. X input will be driven by Forward vector, Y input will be driven by Right vector. Z-axis will be driven by z value
 	FVector PlacementWarpingDirectional(FVector OffsetRanges, const FVector& DirFV, const FVector& DirRV);
 
 

@@ -27,6 +27,7 @@
 #include "Math/RandomStream.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Engine/StaticMeshActor.h"
 #include "ArenaGeneratorLog.h"
 
 // Sets default values
@@ -109,6 +110,43 @@ void ABaseArenaGenerator::WipeArena()
 	FocusPolygonIndex = 0;
 
 }
+
+void ABaseArenaGenerator::ConvertToStaticMeshActors()
+{
+
+	if (!MeshInstances.IsEmpty())
+	{
+		for (auto& Inst : MeshInstances)
+		{
+			for (auto& Component : Inst) {
+				if (!Component || Component->GetStaticMesh() == nullptr) { continue; }
+
+				int32 NumInsts = Component->GetInstanceCount();
+				ArenaGenLog_Info("Converting %d instances into static mesh actors", NumInsts);
+
+				for (int32 i = 0; i < NumInsts; ++i)
+				{
+					FTransform InstTransform;
+					if (Component->GetInstanceTransform(i, InstTransform, true))
+					{
+						AStaticMeshActor* NewMeshActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), InstTransform);
+
+						if (NewMeshActor)
+						{
+							NewMeshActor->GetStaticMeshComponent()->SetStaticMesh(Component->GetStaticMesh());
+						}
+					}
+				}
+			}
+		}
+	}
+	else {
+		ArenaGenLog_Warning("No mesh instances to convert. Generate arena first to convert it!");
+	}
+
+
+}
+
 
 void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 {
@@ -491,7 +529,6 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	//Cache values for next section
 	PreviousMeshSize = MeshSize;
 }
-
 
 
 #pragma region Utility
