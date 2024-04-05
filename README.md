@@ -15,6 +15,7 @@ A little more thought showed this could be built upon to support a fully modular
 - Support for defining mesh origins in relation to generation (accounting for the origins that are not in a specific corner or center)
 - Data table support for generation parametrization
 - Ability to index sections to reuse in generation
+- Convert generated Arenas into Static Mesh Actors in Editor
 
 ## How to use it
 
