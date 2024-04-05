@@ -114,43 +114,6 @@ void ABaseArenaGenerator::WipeArena()
 
 }
 
-void ABaseArenaGenerator::ConvertToStaticMeshActors()
-{
-
-	if (!MeshInstances.IsEmpty())
-	{
-		for (auto& Inst : MeshInstances)
-		{
-			for (auto& Component : Inst) {
-				if (!Component || Component->GetStaticMesh() == nullptr) { continue; }
-
-				int32 NumInsts = Component->GetInstanceCount();
-				ArenaGenLog_Info("Converting %d instances into static mesh actors", NumInsts);
-
-				for (int32 i = 0; i < NumInsts; ++i)
-				{
-					FTransform InstTransform;
-					if (Component->GetInstanceTransform(i, InstTransform, true))
-					{
-						AStaticMeshActor* NewMeshActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), InstTransform);
-
-						if (NewMeshActor)
-						{
-							NewMeshActor->GetStaticMeshComponent()->SetStaticMesh(Component->GetStaticMesh());
-						}
-					}
-				}
-			}
-		}
-	}
-	else {
-		ArenaGenLog_Warning("No mesh instances to convert. Generate arena first to convert it!");
-	}
-
-
-}
-
-
 void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 {
 	if (MeshGroups.IsEmpty()) { 
@@ -250,12 +213,13 @@ void ABaseArenaGenerator::BuildSections()
 	if (SectionList.IsEmpty())
 	{
 		ArenaGenLog_Warning("SectionList is empty! Arena generation is null.");
+		return;
 	}
 	else 
 	{
 		ArenaGenLog_Info("Building out %d Sections", SectionList.Num());
 
-		//for every FArenaSection...
+		//for every Section...
 		for (int32 i = 0; i < SectionList.Num(); i++)
 		{
 			//Calculate section parameters
@@ -316,8 +280,8 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 					(ForwardVectorFromYaw(InteriorAngle/2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
 					);
 
-				OriginOffset = FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
-				//FVector(-(SideLength/2), -Apothem, OriginOffset.Z);
+				OriginOffset = //FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
+					FVector(-(SideLength/2), -Apothem, OriginOffset.Z);
 			}
 		}
 		break;
@@ -722,6 +686,43 @@ FVector ABaseArenaGenerator::PlacementWarpingDirectional(FVector OffsetRanges, c
 		+ FVector(0,0, ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z));// FVector();
 }
 
+
+
+void ABaseArenaGenerator::ConvertToStaticMeshActors()
+{
+
+	if (!MeshInstances.IsEmpty())
+	{
+		for (auto& Inst : MeshInstances)
+		{
+			for (auto& Component : Inst) {
+				if (!Component || Component->GetStaticMesh() == nullptr) { continue; }
+
+				int32 NumInsts = Component->GetInstanceCount();
+				ArenaGenLog_Info("Converting %d instances into static mesh actors", NumInsts);
+
+				for (int32 i = 0; i < NumInsts; ++i)
+				{
+					FTransform InstTransform;
+					if (Component->GetInstanceTransform(i, InstTransform, true))
+					{
+						AStaticMeshActor* NewMeshActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), InstTransform);
+
+						if (NewMeshActor)
+						{
+							NewMeshActor->GetStaticMeshComponent()->SetStaticMesh(Component->GetStaticMesh());
+						}
+					}
+				}
+			}
+		}
+	}
+	else {
+		ArenaGenLog_Warning("No mesh instances to convert. Generate arena first to convert it!");
+	}
+
+
+}
 
 
 
