@@ -256,7 +256,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	FVector MeshSize = MeshGroups[GroupIdx].MeshDimensions;
 	if (PreviousMeshSize == FVector(0)) { PreviousMeshSize = MeshSize; } 
 	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
-	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X : 1.f;
+	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X: 1.f;
 	float HeightAdjustment = MeshSize.Z * Section.InitOffsetByHeightScalar;
 	bool bConcavity = Section.bWarpPlacement && Section.WarpConcavityStrength != 0.f;
 
@@ -345,7 +345,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			for (int SideIdx = 0; SideIdx < ArenaSides; ++SideIdx) 
 			{
 				//Cache last used position to update through next loop
-				LastCachedPosition = LastCachedPosition + ((SideAngleFV * MeshSize.X) * MeshScalar);
+				LastCachedPosition = LastCachedPosition + ((SideAngleFV * MeshSize.X));
 
 				//Determine forward vector for placement
 				SideAngleFV = ForwardVectorFromYaw(ExteriorAngle * SideIdx);
@@ -367,15 +367,12 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						//TODO - determine meshIdx
 						int MeshIdx = 0;
 
-						//Cache some random value between 0 & 3 to use for rotating roof pieces
+						//Cache value for rotational mesh offsets
 						int RandomVal{ 0 };
-						//FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);
 
 						switch (Section.RotationRule) {
 						case EPlacementOrientationRule::RotateByYP:
 							RandomVal = ArenaStream.RandRange(0, YawPosMax);
-							//RotationOffsetAdjustment =
-								//OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
 							break;
 						case EPlacementOrientationRule::RotateYawRandomly:
 							YawRotation = ArenaStream.FRandRange(0, 360.f);
