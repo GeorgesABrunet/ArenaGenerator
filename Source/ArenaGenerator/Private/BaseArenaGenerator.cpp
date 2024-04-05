@@ -105,12 +105,14 @@ void ABaseArenaGenerator::WipeArena()
 	TotalInstances = 0;
 	
 	//Reset parameters for calculations
+	CurrentBOR = EArenaBuildOrderRules::PolygonLeadByRadius;
 	OriginOffset = FVector(0);
 	PreviousMeshSize = FVector(0);
 	PreviousTilesPerSide = 0;
 	PreviousLastPosition = FVector(0);
 	FocusGridIndex = 0;
 	FocusPolygonIndex = 0;
+	
 
 }
 
@@ -136,6 +138,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; }// ArenaGenLog_Info("Found polygon request %d at section index: %d.", FocusPolygonIndex, i);
 	}
 
+	CurrentBOR = Section.SectionBuildOrderRules;
 	//CALCULATE SECTION PARAMETERS. Takes index 0 & 1 based on if leading by floor, or by walls.
 	switch (Section.SectionBuildOrderRules) {
 	case EArenaBuildOrderRules::GridLeadsByDimensions:
@@ -280,8 +283,14 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 					(ForwardVectorFromYaw(InteriorAngle/2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
 					);
 
-				OriginOffset = //FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
-					FVector(-(SideLength/2), -Apothem, OriginOffset.Z);
+				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
+				{
+					OriginOffset = FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
+				}
+				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
+				{
+					OriginOffset = FVector(-(SideLength / 2), -Apothem, OriginOffset.Z);
+				}
 			}
 		}
 		break;
@@ -360,18 +369,20 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 						//Cache some random value between 0 & 3 to use for rotating roof pieces
 						int RandomVal{ 0 };
-						FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);;
+						//FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);
 
 						switch (Section.RotationRule) {
 						case EPlacementOrientationRule::RotateByYP:
 							RandomVal = ArenaStream.RandRange(0, YawPosMax);
-							RotationOffsetAdjustment =
-								OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
+							//RotationOffsetAdjustment =
+								//OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
 							break;
 						case EPlacementOrientationRule::RotateYawRandomly:
 							YawRotation = ArenaStream.FRandRange(0, 360.f);
 							break;
 						}
+
+						FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);
 
 						FTransform TileTransform = FTransform(
 						//ROTATION
@@ -391,7 +402,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							+ (Section.bWarpPlacement ? PlacementWarpingDirectional(Section.WarpRange, SideAngleFV, SideAngleRV) : FVector(0)) //Warping along placement
 							
 						//SCALE
-						, MeshScale);
+						, FVector( MeshScale.X, MeshScale.Y, MeshScale.Z));
 
 						if (MeshInstances[ReRouteIdx][MeshIdx]) {
 							MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);

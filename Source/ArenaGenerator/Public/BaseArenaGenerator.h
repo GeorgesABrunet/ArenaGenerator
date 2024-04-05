@@ -189,6 +189,7 @@ private:
 	TArray<int32> UsedGroupIndices;
 
 	//Cached Values
+	EArenaBuildOrderRules CurrentBOR = EArenaBuildOrderRules::PolygonLeadByRadius;
 	FVector PreviousMeshSize = FVector(0.f);
 	int PreviousTilesPerSide = 0;
 	FVector PreviousLastPosition = FVector(0.f);
