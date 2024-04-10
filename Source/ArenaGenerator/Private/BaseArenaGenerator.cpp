@@ -299,7 +299,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	
 	//Update rotation parameters
 	float RotationIncr = 360.f / Section.YawPossibilities;
-	int YawPosMax = Section.YawPossibilities-1;
+	int YawPosMax = FMath::Clamp(Section.YawPossibilities-1, 2, 720);
 	
 	//Mesh Instancing, get mesh group
 	if (!UsedGroupIndices.Contains(GroupIdx))
@@ -342,7 +342,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			FVector LastCachedPosition{ 0 };
 			FVector SideAngleFV{ 0 };
 
-			for (int SideIdx = 0; SideIdx < ArenaSides; ++SideIdx) 
+			for (int SideIdx = 0; SideIdx < ArenaSides; ++SideIdx) //ArenaSides
 			{
 				//Cache last used position to update through next loop
 				LastCachedPosition = LastCachedPosition + ((SideAngleFV * MeshSize.X));
@@ -356,9 +356,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 				//Determine right vector for placement offsets
 				FVector SideAngleRV = FRotationMatrix(FRotator(0, YawRotation, 0)).GetScaledAxis(EAxis::Y);
 
-				//TODO - orient local warp ranges by RV
-
-				for (int LenIdx = 0; LenIdx < CurrTilesPerSide; ++LenIdx) 
+				for (int LenIdx = 0; LenIdx < CurrTilesPerSide; ++LenIdx) //CurrTilesPerSide
 				{
 					LastCachedPosition = (SideAngleFV * MeshSize.X * (LenIdx > 0 ? 1 : 0)) + LastCachedPosition;
 
@@ -373,13 +371,17 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						switch (Section.RotationRule) {
 						case EPlacementOrientationRule::RotateByYP:
 							RandomVal = ArenaStream.RandRange(0, YawPosMax);
+							//YawRotation = YawRotation + (RotationIncr * RandomVal);
 							break;
 						case EPlacementOrientationRule::RotateYawRandomly:
 							YawRotation = ArenaStream.FRandRange(0, 360.f);
 							break;
 						}
 
-						FVector RotationOffsetAdjustment = OffsetMeshAlongDirections(SideAngleFV, SideAngleRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, 0);
+						//We rotate the mesh around its assumed center and reposition it by its half size after the calculation.
+						FVector RotationOffsetAdjustment = OffsetMeshToCenter(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, Section.DefaultRotation.Yaw + YawRotation + (RotationIncr * RandomVal))
+							- (OriginOffsetScalar(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType) * MeshSize) //Offset back to lead position
+							+ SideAngleFV * (FVector(0.5, 0.5, 0) * MeshSize.X);
 
 						FTransform TileTransform = FTransform(
 						//ROTATION
@@ -649,24 +651,23 @@ FVector ABaseArenaGenerator::OffsetMeshAlongDirections(const FVector& FV, const 
 	return Span;
 }
 
-
-FVector ABaseArenaGenerator::MeshOriginOffsetScalar(EOriginPlacementType OriginType)
+FVector ABaseArenaGenerator::OriginOffsetScalar(EOriginPlacementType OriginType)
 {
 	switch (OriginType) {
 	case(EOriginPlacementType::XY_Positive):
-		return FVector(-0.5, -0.5, 1);
+		return FVector(0.5, 0.5, 0);
 		break;
 	case(EOriginPlacementType::XY_Negative):
-		return FVector(0.5, 0.5, 1);
+		return FVector(-0.5, -0.5, 0);
 		break;
 	case(EOriginPlacementType::X_Positive_Y_Negative):
-		return FVector(-0.5, 0.5, 1);
+		return FVector(0.5, -0.5, 0);
 		break;
 	case(EOriginPlacementType::X_Negative_Y_Positive):
-		return FVector(0.5, -0.5, 1); 
+		return FVector(-0.5, 0.5, 0); 
 		break;
 	case(EOriginPlacementType::Center):
-		return FVector(0, 0, 1);
+		return FVector(0);
 		break;
 	}
 
@@ -680,10 +681,7 @@ FVector ABaseArenaGenerator::PlacementWarpingConcavity(int ColMidpoint, int RowM
 		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
 
 	return  (WarpDirection * ConcaveWarp); 
-	/*FVector(ArenaStream.FRandRange(OffsetRanges.X * -1, OffsetRanges.X),
-		ArenaStream.FRandRange(OffsetRanges.Y * -1, OffsetRanges.Y),
-		ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z)) 
-		+ (WarpDirection * ConcaveWarp);*/
+
 }
 
 FVector ABaseArenaGenerator::PlacementWarpingDirectional(FVector OffsetRanges, const FVector& DirFV, const FVector& DirRV)
@@ -694,6 +692,19 @@ FVector ABaseArenaGenerator::PlacementWarpingDirectional(FVector OffsetRanges, c
 		+ FVector(0,0, ArenaStream.FRandRange(OffsetRanges.Z * -1, OffsetRanges.Z));// FVector();
 }
 
+FVector ABaseArenaGenerator::OffsetMeshToCenter(EOriginPlacementType OriginType, const FVector& MeshSize, float angle)
+{
+	if (OriginType == EOriginPlacementType::Center) { return FVector(0); } //early return if origin type is zero
+
+	float AngleRad = FMath::DegreesToRadians(angle);
+	float cosTheta = FMath::Cos(AngleRad);
+	float sinTheta = FMath::Sin(AngleRad);
+	FVector InitialCenter = OriginOffsetScalar(OriginType) * MeshSize; //determines the offset direction for calculation based on origin type
+
+	FVector RotatedCenter = FVector(((InitialCenter.X * cosTheta) - (InitialCenter.Y * sinTheta)), ((InitialCenter.X * sinTheta) + (InitialCenter.Y * cosTheta)), 0);
+
+	return InitialCenter - RotatedCenter;
+}
 
 
 void ABaseArenaGenerator::ConvertToStaticMeshActors()

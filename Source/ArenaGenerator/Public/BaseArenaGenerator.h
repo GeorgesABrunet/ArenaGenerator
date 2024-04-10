@@ -83,7 +83,7 @@ private:
 	FVector OffsetMeshAlongDirections(const FVector& FV, const FVector& RV, EOriginPlacementType OriginType, const FVector& MeshSize, int RotationIndex);
 
 	//Returns a scalar vector to multiply a mesh size with to get the necessary offset such that the origin sits in the center of the mesh.
-	FVector MeshOriginOffsetScalar(EOriginPlacementType OriginType);
+	FORCEINLINE FVector OriginOffsetScalar(EOriginPlacementType OriginType);
 
 	//Adds concavity to a 2-dimensional grid of columns and rows in a direction amplified by concavity strength.
 	FVector PlacementWarpingConcavity(int ColMidpoint, int RowMidpoint, int Col, int Row, float ConcavityStrength, FVector WarpDirection);
@@ -91,6 +91,8 @@ private:
 	//Randomly offsets by negative and positive values of the OffsetRanges along directions. X input will be driven by Forward vector, Y input will be driven by Right vector. Z-axis will be driven by z value
 	FVector PlacementWarpingDirectional(FVector OffsetRanges, const FVector& DirFV, const FVector& DirRV);
 
+	//Given an angle of rotation, offsets mesh to the center
+	FVector OffsetMeshToCenter(EOriginPlacementType OriginType, const FVector& MeshSize, float angle);
 
 public:
 //The values here are not meant to be directly modified by user input. 
