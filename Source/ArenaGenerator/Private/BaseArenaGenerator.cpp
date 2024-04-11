@@ -280,7 +280,30 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			}
 			else if (Section.SectionType == EArenaSectionType::Polygon) {
 				FVector PolygonOffset = (
-					(ForwardVectorFromYaw(InteriorAngle/2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
+					(ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
+					);
+
+				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
+				{
+					OriginOffset = FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
+				}
+				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
+				{
+					OriginOffset = FVector(-(SideLength / 2), -Apothem, OriginOffset.Z);
+				}
+			}
+		}break;
+		case EOriginPlacementType::XY_Positive:
+		{
+			if (Section.SectionType == EArenaSectionType::HorizontalGrid) {
+				OriginOffset = FVector(
+					(MeshSize.X * (-0.5f * ArenaDimensions) * MeshScale.X),//X
+					(MeshSize.Y * (-0.5f * ArenaDimensions) * MeshScale.Y),//Y
+					OriginOffset.Z);
+			}
+			else if (Section.SectionType == EArenaSectionType::Polygon) {
+				FVector PolygonOffset = (
+					(ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
 					);
 
 				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
@@ -449,19 +472,24 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						float YawRotation{ 0.f };
 
 						switch (Section.RotationRule) {
+							
 							case EPlacementOrientationRule::RotateByYP:
 							{
 								RandomVal = ArenaStream.RandRange(0, YawPosMax);
 							}break;
-
 							case EPlacementOrientationRule::RotateYawRandomly:
 							{
 								YawRotation = ArenaStream.FRandRange(0, 360.f);
 							}break;
+
+							
 						}
 						
 						RotationOffsetAdjustment = //OffsetMeshAlongDirections(PlacementFV, PlacementRV, MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
-									RotatedMeshOffset(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
+									//RotatedMeshOffset(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, RandomVal);
+							OffsetMeshToCenter(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, Section.DefaultRotation.Yaw + YawRotation + (RotationIncr * RandomVal))
+							- (OriginOffsetScalar(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType) * MeshSize) //Offset back to lead position
+							+ (FVector(0.5, 0.5, 0) * MeshSize.X);
 
 						//Transform
 						FTransform TileTransform = FTransform(
