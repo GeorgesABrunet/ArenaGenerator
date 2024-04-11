@@ -12,7 +12,7 @@ A little more thought showed this could be built upon to support a fully modular
 - Building grids and regular polygons vertically as sections
 - Built-in generation rules to modulate building behavior for each section
 - Mesh group logic to optimize instantiation
-- Support for defining mesh origins in relation to generation (accounting for the origins that are not in a specific corner or center)
+- Support for defining mesh origins in relation to mesh span across its local x and y axes (accounting for the origins that are not in a specific corner or center)
 - Data table support for generation parametrization
 - Ability to index sections to reuse in generation
 - Convert generated Arenas into Static Mesh Actors in Editor
@@ -40,7 +40,6 @@ The only condition is to add the copyright notice and a copy of the license with
 - Tutorial videos
 - Editor tools to ease building arenas
 - Mesh patterns and custom pattern support
-- Rotational offsets for RotationYP rule for polygonal structures
 - Arena placement in relation to actor
 - Asynchronous loading support
 - Hierarchical instancing
