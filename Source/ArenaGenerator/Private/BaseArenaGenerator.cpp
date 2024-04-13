@@ -184,7 +184,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		TilesPerArenaSide = Section.Targets.TargetTilesPerSide;
 		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
-		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite divided by sine of adjacent angle 
+		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - InteriorAngle/2)); //Hypotenuse = opposite divided by sine of adjacent angle 
 		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X); //was Section.BuildRules[FocusGridIndex].MeshGroupId
@@ -196,13 +196,16 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		TilesPerArenaSide = FMath::Floor((2.f * CalculateOpposite(Section.Targets.TargetInscribedRadius, InteriorAngle / 2.f)) / MeshGroups[FocusPolygonIndex].MeshDimensions.X); //was Section.BuildRules[FocusPolygonIndex].MeshGroupId
 		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
-		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - (InteriorAngle / 2))); //Hypotenuse = opposite/2 divided by sine of adjacent angle
+		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - InteriorAngle/2)); //Hypotenuse = opposite/2 divided by sine of adjacent angle
 		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X);
 	}break;
 	}
 
+	//TODO - Final Checks. Determine if Arena dimensions are sufficient for the amount of arena sides. Use rule to determine if we should reduce arena sides, or increase arena dimensions if so.
+	// Polygon is incribed within Grid if 1 >= (meshsize.x / (sin(pi/polygonsides) * grid diagonal))
+	//Likely need recursive function to determine how many sides there can be at most.
 }
 
 void ABaseArenaGenerator::BuildSections()
@@ -268,7 +271,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 	//Update Origin Offset based on Arena placement on actor option and previous parameters
 	switch (ArenaPlacementOnActor) {
-	default:
+		default:
 		ArenaGenLog_Info("Hit default case on ArenaPlacement! Placing in center.");
 		case EOriginPlacementType::Center:
 		{
@@ -296,28 +299,100 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		case EOriginPlacementType::XY_Positive:
 		{
 			if (Section.SectionType == EArenaSectionType::HorizontalGrid) {
-				OriginOffset = FVector(
-					(MeshSize.X * (-0.5f * ArenaDimensions) * MeshScale.X),//X
-					(MeshSize.Y * (-0.5f * ArenaDimensions) * MeshScale.Y),//Y
-					OriginOffset.Z);
+				OriginOffset = FVector(0, 0, OriginOffset.Z);
+					
 			}
 			else if (Section.SectionType == EArenaSectionType::Polygon) {
-				FVector PolygonOffset = (
-					(ForwardVectorFromYaw(InteriorAngle / 2) * InscribedRadius) * FVector(static_cast<float>(CurrTilesPerSide) / (SideLength / MeshSize.X))
-					);
 
 				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
 				{
-					OriginOffset = FVector(-PolygonOffset.X, -PolygonOffset.Y, OriginOffset.Z); //for Grid BOR
+					OriginOffset = FVector(((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2))/2
+						, ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2))/2
+						, OriginOffset.Z);
 				}
 				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
 				{
-					OriginOffset = FVector(-(SideLength / 2), -Apothem, OriginOffset.Z);
+					OriginOffset = FVector((MeshSize.X * (0.5f * ArenaDimensions) * MeshScale.X) - (SideLength / 2)
+						, ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2
+						, OriginOffset.Z);
 				}
 			}
 		}
 		break;
-		//TODO - Other cases
+		case EOriginPlacementType::X_Positive_Y_Negative:
+		{
+			if (Section.SectionType == EArenaSectionType::HorizontalGrid) {
+				OriginOffset = FVector(
+					0,//X
+					(MeshSize.Y * -ArenaDimensions * MeshScale.Y),//Y
+					OriginOffset.Z);
+			}
+			else if (Section.SectionType == EArenaSectionType::Polygon) {
+
+				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
+				{
+					OriginOffset = FVector(((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2
+						, (-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2)
+						, OriginOffset.Z);
+				}
+				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
+				{
+					OriginOffset = FVector((MeshSize.X * (0.5f * ArenaDimensions) * MeshScale.X) - (SideLength / 2)
+						, (-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2)
+						, OriginOffset.Z);
+				}
+			}
+		}break;
+		case EOriginPlacementType::XY_Negative:
+		{
+			if (Section.SectionType == EArenaSectionType::HorizontalGrid) {
+				OriginOffset = FVector(
+					(MeshSize.X * -ArenaDimensions * MeshScale.X),//X
+					(MeshSize.Y * -ArenaDimensions * MeshScale.Y),//Y
+					OriginOffset.Z);
+			}
+			else if (Section.SectionType == EArenaSectionType::Polygon) {
+			
+				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
+				{
+					OriginOffset = FVector((-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2)
+						, (-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2)
+						, OriginOffset.Z); //for Grid BOR
+				}
+				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
+				{
+					
+					OriginOffset = FVector(-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * (0.5f * ArenaDimensions) * MeshScale.X) - (SideLength / 2))
+						, (-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2)
+						, OriginOffset.Z);
+				}
+			}
+		}break;
+		case EOriginPlacementType::X_Negative_Y_Positive:
+		{
+			if (Section.SectionType == EArenaSectionType::HorizontalGrid) {
+				OriginOffset = FVector(
+					(MeshSize.X * -ArenaDimensions * MeshScale.X),//X
+					0,//Y
+					OriginOffset.Z);
+			}
+			else if (Section.SectionType == EArenaSectionType::Polygon) {
+
+				if (CurrentBOR == EArenaBuildOrderRules::GridLeadsByDimensions || CurrentBOR == EArenaBuildOrderRules::GridLeadsByRadius)
+				{
+					OriginOffset = FVector(-Apothem - (SideLength / 2) - (MeshSize.X * 3) / 4
+						, ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2
+						, OriginOffset.Z);
+				}
+				else if (CurrentBOR == EArenaBuildOrderRules::PolygonLeadByDimensions || CurrentBOR == EArenaBuildOrderRules::PolygonLeadByRadius)
+				{
+					OriginOffset = FVector(-(MeshSize.X * ArenaDimensions * MeshScale.X) + ((MeshSize.X * (0.5f * ArenaDimensions) * MeshScale.X) - (SideLength / 2))
+						, ((MeshSize.X * ArenaDimensions * MeshScale.X) - (Apothem * 2)) / 2
+						, OriginOffset.Z);
+				}
+			}
+		}break;
+		
 	}
 	
 	//Update rotation parameters
