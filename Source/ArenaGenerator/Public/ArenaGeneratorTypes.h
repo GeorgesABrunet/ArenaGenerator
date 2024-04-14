@@ -88,6 +88,13 @@ enum class EPlacementOrientationRule : uint8
 	RotateYawRandomly, //random float between 0-360 will be assigned to the yaw
 	//...
 };
+
+UENUM(BlueprintType)
+enum class ETypeToPlace : uint8
+{
+	StaticMeshes,
+	Actors,
+};
 #pragma endregion
 
 #pragma region Structs
@@ -120,6 +127,21 @@ struct ARENAGENERATOR_API FArenaMeshGroupConfig : public FTableRowBase
 };
 
 USTRUCT(BlueprintType)
+struct ARENAGENERATOR_API FArenaActorConfig : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector ActorDimensions = FVector{ 100, 100, 100 };
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		FVector ActorScale = FVector{ 1 };
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<AActor>> ClassesToSpawn;
+};
+
+USTRUCT(BlueprintType)
 struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
 {
 	GENERATED_BODY()
@@ -132,9 +154,13 @@ struct ARENAGENERATOR_API FArenaSectionBuildRules : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
 		int SectionAmount = 1;
 
-	//Which Mesh Group index should be referred to for mesh picking patterns
+	//Type of object to place
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
-		int MeshGroupId = 0;
+		ETypeToPlace AssetToPlace = ETypeToPlace::StaticMeshes;
+
+	//Which Object Group index should be referred to for object picking patterns
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+		int ObjectGroupId = 0;
 
 	//Whether or not this section should update the origin offset as it iterates the SectionAmount
 	//TODO - not yet implemented

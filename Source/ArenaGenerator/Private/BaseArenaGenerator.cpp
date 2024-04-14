@@ -101,6 +101,19 @@ void ABaseArenaGenerator::WipeArena()
 
 		MeshInstances.Empty();
 	}
+
+	//Iterate through spawned actors and destroy spawned actors
+	if (!SpawnedActors.IsEmpty()) 
+	{
+		for (AActor* Actor : SpawnedActors)
+		{
+			if (IsValid(Actor)) {
+				Actor->Destroy();
+			}
+		}
+
+		SpawnedActors.Empty();
+	}
 	
 	TotalInstances = 0;
 	
@@ -132,14 +145,17 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 	//Determine best starting indices for patterns
 	bool bGrided = false;
 	bool bPolygoned = false;
-	for (int i = 0; i < Section.BuildRules.Num(); i++) {
-		if (bGrided && bPolygoned) { break; }
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].MeshGroupId; bGrided = true; }// ArenaGenLog_Info("Found grid request %d at section index: %d.", FocusGridIndex, i);
-		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].MeshGroupId; bPolygoned = true; }// ArenaGenLog_Info("Found polygon request %d at section index: %d.", FocusPolygonIndex, i);
-	}
 
+	for (int32 i = 0; i < Section.BuildRules.Num(); i++) {
+		if (bGrided && bPolygoned) { break; }
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].ObjectGroupId; bGrided = true; }
+		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].ObjectGroupId; bPolygoned = true; }
+	}
 	CurrentBOR = Section.SectionBuildOrderRules;
-	//CALCULATE SECTION PARAMETERS. Takes index 0 & 1 based on if leading by floor, or by walls.
+	FVector GridTileSize;
+	FVector PolygonTileSize;
+
+	//CALCULATE SECTION PARAMETERS
 	switch (Section.SectionBuildOrderRules) {
 	case EArenaBuildOrderRules::GridLeadsByDimensions:
 	{
@@ -210,8 +226,8 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 
 void ABaseArenaGenerator::BuildSections()
 {
-	if (MeshGroups.IsEmpty()) {
-		ArenaGenLog_Error("Cannot build sections with empty Mesh Groups!");
+	if (MeshGroups.IsEmpty() && ActorGroups.IsEmpty()) {
+		ArenaGenLog_Error("Cannot build sections with empty Mesh & Actor Groups!");
 		return;
 	}
 
@@ -244,21 +260,50 @@ void ABaseArenaGenerator::BuildSections()
 
 void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 {
-	if (MeshGroups.IsEmpty()) {
+	if(Section.AssetToPlace == ETypeToPlace::StaticMeshes && MeshGroups.IsEmpty())
+	{
 		ArenaGenLog_Error("Cannot build section pattern because associated mesh group is invalid OR mesh groups are empty.");
 		return; 
 	}
-	
-	//Clamp MeshGroup index so that we do not search outside of its bounds
-	int GroupIdx = (Section.MeshGroupId < MeshGroups.Num() && Section.MeshGroupId > 0) ? Section.MeshGroupId : 0;
-	int ReRouteIdx = 0;
+	else if (Section.AssetToPlace == ETypeToPlace::Actors && ActorGroups.IsEmpty())
+	{
+		ArenaGenLog_Error("Cannot build section pattern because associated actor group is invalid OR actor groups are empty.");
+		return;
+	}
+
 	if (Section.SectionAmount < 1) { Section.SectionAmount = 1; } //Make sure section amount is not negative or zero
 
-	//Determine arena parameters based off of current origin offsets etc.
 	
-	FVector MeshSize = MeshGroups[GroupIdx].MeshDimensions;
+	int GroupIdx = 0;
+	int ReRouteIdx = 0;
+	FVector MeshSize = FVector{ 100 };
+	FVector MeshScale = FVector{ 1 };
+
+	switch (Section.AssetToPlace)
+	{
+		default:
+			ArenaGenLog_Warning("Hit default for Asset To Place. Using Static Mesh as default.");
+		case ETypeToPlace::StaticMeshes:
+		{
+			//Clamp MeshGroup index so that we do not search outside of its bounds
+			GroupIdx = (Section.ObjectGroupId < MeshGroups.Num() && Section.ObjectGroupId > 0) ? Section.ObjectGroupId : 0;
+
+			//Determine arena parameters based off of current origin offsets etc.
+			MeshSize = MeshGroups[GroupIdx].MeshDimensions;
+			MeshScale = MeshGroups[GroupIdx].MeshScale;
+		}break;
+		case ETypeToPlace::Actors:
+		{
+			GroupIdx = (Section.ObjectGroupId < ActorGroups.Num() && Section.ObjectGroupId > 0) ? Section.ObjectGroupId : 0;
+
+			MeshSize = ActorGroups[GroupIdx].ActorDimensions;
+			MeshScale = ActorGroups[GroupIdx].ActorScale;
+		}break;
+	}
+	
+	
+	
 	if (PreviousMeshSize == FVector(0)) { PreviousMeshSize = MeshSize; } 
-	FVector MeshScale = MeshGroups[GroupIdx].MeshScale;	
 	float MeshScalar = PreviousMeshSize.X != 0.f ? MeshSize.X / PreviousMeshSize.X: 1.f;
 	float HeightAdjustment = MeshSize.Z * Section.InitOffsetByHeightScalar;
 	bool bConcavity = Section.bWarpPlacement && Section.WarpConcavityStrength != 0.f;
@@ -400,39 +445,41 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	int YawPosMax = FMath::Clamp(Section.YawPossibilities-1, 2, 720);
 	
 	//Mesh Instancing, get mesh group
-	if (!UsedGroupIndices.Contains(GroupIdx))
+	if (Section.AssetToPlace == ETypeToPlace::StaticMeshes)
 	{
-		UsedGroupIndices.Add(GroupIdx);
-
-		TArray<UInstancedStaticMeshComponent*> ToInstance;
-
-		for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
+		if (!UsedGroupIndices.Contains(GroupIdx))
 		{
-			if (ArenaMesh.Mesh)
+			UsedGroupIndices.Add(GroupIdx);
+
+			TArray<UInstancedStaticMeshComponent*> ToInstance;
+
+			for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
 			{
-				UInstancedStaticMeshComponent* InstancedMesh =
-					NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
+				if (ArenaMesh.Mesh)
+				{
+					UInstancedStaticMeshComponent* InstancedMesh =
+						NewObject<UInstancedStaticMeshComponent>(this, UInstancedStaticMeshComponent::StaticClass());
 
-				InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
-				InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-				InstancedMesh->RegisterComponent();
+					InstancedMesh->SetStaticMesh(ArenaMesh.Mesh);
+					InstancedMesh->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+					InstancedMesh->RegisterComponent();
 			
-				ToInstance.Add(InstancedMesh);
+					ToInstance.Add(InstancedMesh);
+				}
+			
 			}
-			
-		}
 
-		//add tarray of instances to mesh instances
-		MeshInstances.Add(ToInstance);
-		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);		//Using reroute index allows us to add mesh groups out of order to the mesh instances
-		ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances at index: %d ", GroupIdx, ReRouteIdx);
+			//add tarray of instances to mesh instances
+			MeshInstances.Add(ToInstance);
+			ReRouteIdx = UsedGroupIndices.Find(GroupIdx);		//Using reroute index allows us to add mesh groups out of order to the mesh instances
+			ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances at index: %d ", GroupIdx, ReRouteIdx);
+		}
+		else 
+		{
+			ReRouteIdx = UsedGroupIndices.Find(GroupIdx);
+			ArenaGenLog_Info("Index: %d is already instanced, ignoring request", GroupIdx);
+		}
 	}
-	else 
-	{
-		ReRouteIdx = UsedGroupIndices.Find(GroupIdx);
-		ArenaGenLog_Info("Index: %d is already instanced, ignoring request", GroupIdx);
-	}
-	
 	//Build Section
 	switch (Section.SectionType) {
 		case EArenaSectionType::Polygon:
@@ -476,10 +523,16 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							break;
 						}
 
+						FVector RotationOffsetAdjustment = FVector(0);
+
 						//We rotate the mesh around its assumed center and reposition it by its half size after the calculation.
-						FVector RotationOffsetAdjustment = OffsetMeshToCenter(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, Section.DefaultRotation.Yaw + YawRotation + (RotationIncr * RandomVal))
+						if (Section.AssetToPlace == ETypeToPlace::StaticMeshes)
+						{
+							RotationOffsetAdjustment = OffsetMeshToCenter(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType, MeshSize, Section.DefaultRotation.Yaw + YawRotation + (RotationIncr * RandomVal))
 							- (OriginOffsetScalar(MeshGroups[GroupIdx].GroupMeshes[MeshIdx].OriginType) * MeshSize) //Offset back to lead position
 							+ SideAngleFV * (FVector(0.5, 0.5, 0) * MeshSize.X);
+						}
+						
 
 						FTransform TileTransform = FTransform(
 						//ROTATION
@@ -501,13 +554,39 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 						//SCALE
 						, FVector( MeshScale.X, MeshScale.Y, MeshScale.Z));
 
-						if (MeshInstances[ReRouteIdx][MeshIdx]) {
-							MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
-							TotalInstances++;
+
+						switch (Section.AssetToPlace) {
+							default:
+							case ETypeToPlace::StaticMeshes:
+							{
+								//Instancing mesh
+								if (MeshInstances[ReRouteIdx][MeshIdx]) {
+									MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
+									TotalInstances++;
+								}
+								else {
+									ArenaGenLog_Error("Could not find Mesh Instance of group: %d at index: %d", GroupIdx, MeshIdx);
+								}
+							}break;
+
+							case ETypeToPlace::Actors:
+							{
+								FActorSpawnParameters SpawnParams = FActorSpawnParameters();
+								SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+								SpawnParams.Owner = this;
+
+								FTransform TempTransform;
+
+								AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &TempTransform, SpawnParams));
+
+								ActorToSpawn->SetActorRelativeLocation(TileTransform.GetLocation());
+
+								SpawnedActors.Add(ActorToSpawn);
+								
+							}break;
 						}
-						else {
-							ArenaGenLog_Error("Could not find Mesh Instance of group: %d at index: %d", GroupIdx, MeshIdx);
-						}
+
+						
 
 					}
 				}
@@ -587,13 +666,31 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							, MeshScale
 						);
 
-						//Add instance
-						if (MeshInstances[ReRouteIdx][MeshIdx]) {
-							MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
-							TotalInstances++;
-						}
-						else {
-							ArenaGenLog_Error("Could not find Mesh Instance of group: %d at index: %d", GroupIdx, MeshIdx);
+						switch (Section.AssetToPlace) {
+						default:
+						case ETypeToPlace::StaticMeshes:
+						{
+							//Instancing mesh
+							if (MeshInstances[ReRouteIdx][MeshIdx]) {
+								MeshInstances[ReRouteIdx][MeshIdx]->AddInstance(TileTransform);
+								TotalInstances++;
+							}
+							else {
+								ArenaGenLog_Error("Could not find Mesh Instance of group: %d at index: %d", GroupIdx, MeshIdx);
+							}
+						}break;
+
+						case ETypeToPlace::Actors:
+						{
+							FActorSpawnParameters SpawnParams = FActorSpawnParameters();
+							SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+							SpawnParams.Owner = this;
+
+							AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &TileTransform, SpawnParams));
+
+							SpawnedActors.Add(ActorToSpawn);
+
+						}break;
 						}
 					}
 				}

@@ -168,6 +168,9 @@ public:
 		TArray<FArenaMeshGroupConfig> MeshGroups;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")
+		TArray<FArenaActorConfig> ActorGroups;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arena Parameters")
 		TArray<FArenaSection> SectionList;
 
 #pragma endregion
@@ -188,6 +191,7 @@ private:
 
 	FVector OriginOffset = FVector(0);
 	TArray<TArray<UInstancedStaticMeshComponent*>> MeshInstances;
+	TArray<AActor*> SpawnedActors;
 	TArray<int32> UsedGroupIndices;
 
 	//Cached Values
