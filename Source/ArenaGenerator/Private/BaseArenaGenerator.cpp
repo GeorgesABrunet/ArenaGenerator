@@ -265,7 +265,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		ArenaGenLog_Error("Cannot build section pattern because associated mesh group is invalid OR mesh groups are empty.");
 		return; 
 	}
-	else if (Section.AssetToPlace == ETypeToPlace::Actors && ActorGroups.IsEmpty())
+	else if (Section.AssetToPlace == ETypeToPlace::Actors && (ActorGroups.IsEmpty() || ActorGroups[0].ClassesToSpawn.IsEmpty()))
 	{
 		ArenaGenLog_Error("Cannot build section pattern because associated actor group is invalid OR actor groups are empty.");
 		return;
@@ -315,6 +315,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 	if (PreviousTilesPerSide == 0) { PreviousTilesPerSide = TilesPerArenaSide; } // Prev Tiles cannot be zero
 
 	//Update Origin Offset based on Arena placement on actor option and previous parameters
+	
 	switch (ArenaPlacementOnActor) {
 		default:
 		ArenaGenLog_Info("Hit default case on ArenaPlacement! Placing in center.");
@@ -480,6 +481,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			ArenaGenLog_Info("Index: %d is already instanced, ignoring request", GroupIdx);
 		}
 	}
+	
 	//Build Section
 	switch (Section.SectionType) {
 		case EArenaSectionType::Polygon:
@@ -575,11 +577,12 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 								SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 								SpawnParams.Owner = this;
 
-								FTransform TempTransform;
+								FTransform ActorTransform;
 
-								AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &TempTransform, SpawnParams));
+								AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &ActorTransform, SpawnParams));
+								ActorToSpawn->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
 
-								ActorToSpawn->SetActorRelativeLocation(TileTransform.GetLocation());
+								ActorToSpawn->SetActorRelativeTransform(TileTransform, false);
 
 								SpawnedActors.Add(ActorToSpawn);
 								
