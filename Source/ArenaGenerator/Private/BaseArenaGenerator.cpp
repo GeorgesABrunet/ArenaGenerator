@@ -152,8 +152,8 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].ObjectGroupId; bPolygoned = true; }
 	}
 	CurrentBOR = Section.SectionBuildOrderRules;
-	FVector GridTileSize;
-	FVector PolygonTileSize;
+	FVector GridTileSize{};
+	FVector PolygonTileSize{};
 
 	//CALCULATE SECTION PARAMETERS
 	switch (Section.SectionBuildOrderRules) {
