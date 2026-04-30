@@ -24,6 +24,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Map.h"
 #include "GameFramework/Actor.h"
 #include "ArenaGeneratorTypes.h"
 #include "BaseArenaGenerator.generated.h"
@@ -55,7 +56,7 @@ public:
 	virtual void WipeArena();
 	
 	//Place arena generation in world as Static Mesh Actors
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Generation", meta = (ToolTip = "Spawns standalone static mesh actors for each ISMC instance. Existing instanced meshes are not cleared; wipe the arena afterward if duplicates are undesirable."))
 	void ConvertToStaticMeshActors();
 
 	//Specific function for building out the sections in section list
@@ -192,7 +193,7 @@ private:
 	FVector OriginOffset = FVector(0);
 	TArray<TArray<UInstancedStaticMeshComponent*>> MeshInstances;
 	TArray<AActor*> SpawnedActors;
-	TArray<int32> UsedGroupIndices;
+	TMap<int32, int32> MeshGroupRowByGroupId;
 
 	//Cached Values
 	EArenaBuildOrderRules CurrentBOR = EArenaBuildOrderRules::PolygonLeadByRadius;

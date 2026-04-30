@@ -19,6 +19,11 @@
 			"Name": "ArenaGenerator",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ArenaGeneratorEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

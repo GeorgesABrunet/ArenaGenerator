@@ -26,6 +26,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/UnrealString.h"
+#include "Engine/Engine.h"
 #include "ArenaGeneratorSettings.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogArenaGenerator, Log, All);
@@ -40,7 +41,7 @@ bool ShowLogsOnScreen(float& Duration);
 {	\
 	UE_LOG(LogArenaGenerator, Verbosity, TEXT(Format), ##__VA_ARGS__) \
 	float Duration; \
-	if (ShowOnScreen && ShowLogsOnScreen(Duration)) \
+	if (ShowOnScreen && ShowLogsOnScreen(Duration) && GEngine) \
 	{ \
 		GEngine->AddOnScreenDebugMessage(-1, Duration, Color, FString::Printf(TEXT(Format), ##__VA_ARGS__)); \
 	} \

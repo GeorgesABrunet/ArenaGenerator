@@ -26,8 +26,8 @@
 #include "BaseArenaGenerator.h"
 #include "Math/RandomStream.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
 #include "ArenaGeneratorLog.h"
 
 // Sets default values
@@ -67,6 +67,7 @@ void ABaseArenaGenerator::GenerateArena()
 	//Clear previous arena
 	WipeArena();
 
+	ArenaStream.Initialize(ArenaSeed);
 
 	ArenaGenLog_Info("============ Generating Arena ============");
 
@@ -82,38 +83,28 @@ void ABaseArenaGenerator::WipeArena()
 {
 	ArenaGenLog_Info("Wiping Arena...");
 	
-	//Clear list of used indices
-	if (!UsedGroupIndices.IsEmpty()) {
-		UsedGroupIndices.Empty();
-	}
+	MeshGroupRowByGroupId.Empty();
 	
-	//Iterate through mesh instances and destroy before dereferencing
-	if (!MeshInstances.IsEmpty())
-	{	
-		for (auto& Inst : MeshInstances)
-		{
-			for (auto& Component : Inst) {
-				if (Component) {
-					Component->DestroyComponent();
-				}
-			}		
-		}
-
-		MeshInstances.Empty();
-	}
-
-	//Iterate through spawned actors and destroy spawned actors
-	if (!SpawnedActors.IsEmpty()) 
+	for (auto& Inst : MeshInstances)
 	{
-		for (AActor* Actor : SpawnedActors)
+		for (auto& Component : Inst)
 		{
-			if (IsValid(Actor)) {
-				Actor->Destroy();
+			if (Component)
+			{
+				Component->DestroyComponent();
 			}
 		}
-
-		SpawnedActors.Empty();
 	}
+	MeshInstances.Empty();
+
+	for (AActor* Actor : SpawnedActors)
+	{
+		if (IsValid(Actor))
+		{
+			Actor->Destroy();
+		}
+	}
+	SpawnedActors.Empty();
 	
 	TotalInstances = 0;
 	
@@ -142,6 +133,9 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 	InteriorAngle = ((ArenaSides - 2) * 180) / ArenaSides;
 	ExteriorAngle = 360.f / ArenaSides;
 
+	FocusGridIndex = 0;
+	FocusPolygonIndex = 0;
+
 	//Determine best starting indices for patterns
 	bool bGrided = false;
 	bool bPolygoned = false;
@@ -151,6 +145,8 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		if (Section.BuildRules[i].SectionType == EArenaSectionType::HorizontalGrid && !bGrided) { FocusGridIndex = Section.BuildRules[i].ObjectGroupId; bGrided = true; }
 		if (Section.BuildRules[i].SectionType == EArenaSectionType::Polygon && !bPolygoned) { FocusPolygonIndex = Section.BuildRules[i].ObjectGroupId; bPolygoned = true; }
 	}
+	FocusGridIndex = FMath::Clamp(FocusGridIndex, 0, MeshGroups.Num() - 1);
+	FocusPolygonIndex = FMath::Clamp(FocusPolygonIndex, 0, MeshGroups.Num() - 1);
 	CurrentBOR = Section.SectionBuildOrderRules;
 	FVector GridTileSize{};
 	FVector PolygonTileSize{};
@@ -170,7 +166,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 			1, //Min
 			MaxTilesPerSideRow //Max
 		);
-		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+		Apothem = FMath::Abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 	}break;
 	case EArenaBuildOrderRules::GridLeadsByRadius:
@@ -190,7 +186,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 			MaxTilesPerSideRow //Max
 		);
 	
-		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+		Apothem = FMath::Abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 	}break;
 	case EArenaBuildOrderRules::PolygonLeadByDimensions:
@@ -201,7 +197,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
 		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - InteriorAngle/2)); //Hypotenuse = opposite divided by sine of adjacent angle 
-		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+		Apothem = FMath::Abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X); //was Section.BuildRules[FocusGridIndex].MeshGroupId
 	}break;
@@ -213,7 +209,7 @@ void ABaseArenaGenerator::CalculateSectionParameters(FArenaSection& Section)
 		SideLength = MeshGroups[FocusPolygonIndex].MeshDimensions.X * TilesPerArenaSide;
 
 		InscribedRadius = (SideLength / 2.f) / FMath::Sin(FMath::DegreesToRadians(90.f - InteriorAngle/2)); //Hypotenuse = opposite/2 divided by sine of adjacent angle
-		Apothem = abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
+		Apothem = FMath::Abs(CalculateAdjacent(InscribedRadius, InteriorAngle / 2));
 
 		ArenaDimensions = FMath::CeilToInt((InscribedRadius * 2.f) / MeshGroups[FocusGridIndex].MeshDimensions.X);
 	}break;
@@ -265,7 +261,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		ArenaGenLog_Error("Cannot build section pattern because associated mesh group is invalid OR mesh groups are empty.");
 		return; 
 	}
-	else if (Section.AssetToPlace == ETypeToPlace::Actors && (ActorGroups.IsEmpty() || ActorGroups[0].ClassesToSpawn.IsEmpty()))
+	else if (Section.AssetToPlace == ETypeToPlace::Actors && ActorGroups.IsEmpty())
 	{
 		ArenaGenLog_Error("Cannot build section pattern because associated actor group is invalid OR actor groups are empty.");
 		return;
@@ -300,7 +296,21 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			MeshScale = ActorGroups[GroupIdx].ActorScale;
 		}break;
 	}
-	
+
+	if (Section.AssetToPlace == ETypeToPlace::Actors)
+	{
+		if (!ActorGroups.IsValidIndex(GroupIdx) || ActorGroups[GroupIdx].ClassesToSpawn.IsEmpty())
+		{
+			ArenaGenLog_Error("Cannot build section pattern: actor group %d has no classes to spawn.", GroupIdx);
+			return;
+		}
+		const TSubclassOf<AActor>& ActorClassEntry = ActorGroups[GroupIdx].ClassesToSpawn[0];
+		if (!ActorClassEntry)
+		{
+			ArenaGenLog_Error("Cannot build section pattern: spawn class at index 0 is null for actor group %d.", GroupIdx);
+			return;
+		}
+	}
 	
 	
 	if (PreviousMeshSize == FVector(0)) { PreviousMeshSize = MeshSize; } 
@@ -441,17 +451,15 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 		
 	}
 	
-	//Update rotation parameters
-	float RotationIncr = 360.f / Section.YawPossibilities;
-	int YawPosMax = FMath::Clamp(Section.YawPossibilities-1, 2, 720);
+	const int32 EffectiveYawPossibilities = FMath::Max(1, Section.YawPossibilities);
+	const float RotationIncr = 360.f / static_cast<float>(EffectiveYawPossibilities);
+	const int32 YawPosMax = EffectiveYawPossibilities - 1;
 	
 	//Mesh Instancing, get mesh group
 	if (Section.AssetToPlace == ETypeToPlace::StaticMeshes)
 	{
-		if (!UsedGroupIndices.Contains(GroupIdx))
+		if (!MeshGroupRowByGroupId.Contains(GroupIdx))
 		{
-			UsedGroupIndices.Add(GroupIdx);
-
 			TArray<UInstancedStaticMeshComponent*> ToInstance;
 
 			for (FArenaMesh& ArenaMesh : MeshGroups[GroupIdx].GroupMeshes)
@@ -470,14 +478,13 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 			
 			}
 
-			//add tarray of instances to mesh instances
-			MeshInstances.Add(ToInstance);
-			ReRouteIdx = UsedGroupIndices.Find(GroupIdx);		//Using reroute index allows us to add mesh groups out of order to the mesh instances
+			ReRouteIdx = MeshInstances.Add(MoveTemp(ToInstance));
+			MeshGroupRowByGroupId.Add(GroupIdx, ReRouteIdx);
 			ArenaGenLog_Info("Adding the Mesh Group %d to Mesh Instances at index: %d ", GroupIdx, ReRouteIdx);
 		}
 		else 
 		{
-			ReRouteIdx = UsedGroupIndices.Find(GroupIdx);
+			ReRouteIdx = MeshGroupRowByGroupId.FindChecked(GroupIdx);
 			ArenaGenLog_Info("Index: %d is already instanced, ignoring request", GroupIdx);
 		}
 	}
@@ -573,15 +580,22 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 							case ETypeToPlace::Actors:
 							{
-								FActorSpawnParameters SpawnParams = FActorSpawnParameters();
+								UWorld* World = GetWorld();
+								if (!World)
+								{
+									ArenaGenLog_Error("Cannot spawn arena actors: no valid world.");
+									break;
+								}
+								FActorSpawnParameters SpawnParams;
 								SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 								SpawnParams.Owner = this;
-
-								FTransform ActorTransform;
-
-								AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &ActorTransform, SpawnParams));
+								AActor* ActorToSpawn = World->SpawnActor<AActor>(ActorGroups[GroupIdx].ClassesToSpawn[0], FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+								if (!ActorToSpawn)
+								{
+									ArenaGenLog_Error("Failed to spawn actor for group %d.", GroupIdx);
+									break;
+								}
 								ActorToSpawn->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-
 								ActorToSpawn->SetActorRelativeTransform(TileTransform, false);
 
 								SpawnedActors.Add(ActorToSpawn);
@@ -653,7 +667,7 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 							//ROTATION
 							FRotator(
 								Section.DefaultRotation.Pitch  //Pitch
-								, YawRotation + (RotationIncr * RandomVal) //+ Section.DefaultRotation.Yaw //Yaw
+								, Section.DefaultRotation.Yaw + YawRotation + (RotationIncr * RandomVal) //Yaw
 								, Section.DefaultRotation.Roll //Roll
 							),
 							//LOCATION
@@ -685,11 +699,23 @@ void ABaseArenaGenerator::BuildSection(FArenaSectionBuildRules& Section)
 
 						case ETypeToPlace::Actors:
 						{
-							FActorSpawnParameters SpawnParams = FActorSpawnParameters();
+							UWorld* World = GetWorld();
+							if (!World)
+							{
+								ArenaGenLog_Error("Cannot spawn arena actors: no valid world.");
+								break;
+							}
+							FActorSpawnParameters SpawnParams;
 							SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 							SpawnParams.Owner = this;
-
-							AActor* ActorToSpawn = Cast<AActor>(GetWorld()->SpawnActor(ActorGroups[0].ClassesToSpawn[0], &TileTransform, SpawnParams));
+							AActor* ActorToSpawn = World->SpawnActor<AActor>(ActorGroups[GroupIdx].ClassesToSpawn[0], FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+							if (!ActorToSpawn)
+							{
+								ArenaGenLog_Error("Failed to spawn actor for group %d.", GroupIdx);
+								break;
+							}
+							ActorToSpawn->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+							ActorToSpawn->SetActorRelativeTransform(TileTransform, false);
 
 							SpawnedActors.Add(ActorToSpawn);
 
@@ -880,8 +906,8 @@ FVector ABaseArenaGenerator::OriginOffsetScalar(EOriginPlacementType OriginType)
 FVector ABaseArenaGenerator::PlacementWarpingConcavity(int ColMidpoint, int RowMidpoint, int Col, int Row, float ConcavityStrength, FVector WarpDirection)
 {
 	float ConcaveWarp = ConcavityStrength *
-		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Col - ColMidpoint)) / RowMidpoint), 0.f, 1.f)) *
-		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
+		(FMath::Clamp((FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(FMath::Abs(Col - ColMidpoint)) / RowMidpoint), 0.f, 1.f)) *
+		FMath::Lerp(0.f, 1.f, FMath::Clamp((static_cast<float>(FMath::Abs(Row - RowMidpoint)) / RowMidpoint), 0.f, 1.f))), 0.f, 1.f));
 
 	return  (WarpDirection * ConcaveWarp); 
 
@@ -912,9 +938,16 @@ FVector ABaseArenaGenerator::OffsetMeshToCenter(EOriginPlacementType OriginType,
 
 void ABaseArenaGenerator::ConvertToStaticMeshActors()
 {
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		ArenaGenLog_Error("Cannot convert to static mesh actors: no valid world.");
+		return;
+	}
 
 	if (!MeshInstances.IsEmpty())
 	{
+		ArenaGenLog_Warning("ConvertToStaticMeshActors duplicates geometry: spawned mesh actors leave existing Instanced Static Mesh Components intact. Clear the arena afterward if you do not want both.");
 		for (auto& Inst : MeshInstances)
 		{
 			for (auto& Component : Inst) {
@@ -928,7 +961,7 @@ void ABaseArenaGenerator::ConvertToStaticMeshActors()
 					FTransform InstTransform;
 					if (Component->GetInstanceTransform(i, InstTransform, true))
 					{
-						AStaticMeshActor* NewMeshActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), InstTransform);
+						AStaticMeshActor* NewMeshActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), InstTransform);
 
 						if (NewMeshActor)
 						{
